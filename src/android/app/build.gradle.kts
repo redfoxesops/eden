@@ -387,7 +387,7 @@ fun getGitVersion(): String {
     } else {
         gitVersion
     }
-    return versionName.ifEmpty { "0.0" }
+    return versionName.ifEmpty { "0.0" } + "-redfox"
 }
 
 afterEvaluate {
