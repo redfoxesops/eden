@@ -191,8 +191,8 @@ android {
             isDefault = true
             minSdk = 33
 
-            manifestPlaceholders += mapOf("appNameBase" to "Eden")
-            resValue("string", "app_name_suffixed", "Eden")
+            manifestPlaceholders += mapOf("appNameBase" to "Eden Redfox")
+            resValue("string", "app_name_suffixed", "Eden Redfox")
 
             ndk {
                 abiFilters += listOf("arm64-v8a")
@@ -220,8 +220,8 @@ android {
         create("legacy") {
             dimension = "version"
             minSdk = 29
-            manifestPlaceholders += mapOf("appNameBase" to "Eden Legacy")
-            resValue("string", "app_name_suffixed", "Eden Legacy")
+            manifestPlaceholders += mapOf("appNameBase" to "Eden Redfox Legacy")
+            resValue("string", "app_name_suffixed", "Eden Redfox Legacy")
             applicationId = "dev.legacy.eden_emulator"
 
             externalNativeBuild {
