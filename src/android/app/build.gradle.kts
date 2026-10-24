@@ -65,6 +65,7 @@ android {
 
     defaultConfig {
         applicationId = "dev.eden.eden_emulator"
+        applicationIdSuffix = ".redfox"
         minSdk = 24
         targetSdk = 36
         versionName = getGitVersion()
