@@ -606,6 +606,8 @@ class SettingsFragmentPresenter(
                     titleId = R.string.edit_overlay_layout,
                     descriptionId = R.string.edit_overlay_layout_description,
                     launchIntent = { context ->
+                        // EmulationActivity reloads the config from disk on create
+                        NativeConfig.saveGlobalConfig()
                         EmulationActivity.launchForOverlayEdit(context)
                     }
                 )
