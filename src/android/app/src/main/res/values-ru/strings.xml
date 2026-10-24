@@ -6,7 +6,7 @@
     <string name="notice_notification_channel_description">Показывает уведомления, когда что-то пошло не так</string>
     <string name="notification_permission_not_granted">Вы не предоставили разрешение на уведомления!</string>
     <string name="app_notification_channel_description">Уведомления эмулятора switch Eden</string>
-    <string name="app_notification_running">Eden работает</string>
+    <string name="app_notification_running">Eden Redfox работает</string>
     <string name="seconds">Секунды</string>
 
     <!-- Spinbox strings -->

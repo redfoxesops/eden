@@ -5,7 +5,7 @@
     <string name="notice_notification_channel_description">Показує сповіщення у разі виникнення проблем.</string>
     <string name="notification_permission_not_granted">Дозвіл на сповіщення не надано!</string>
     <string name="app_notification_channel_description">Сповіщення емулятора Switch Eden</string>
-    <string name="app_notification_running">Eden працює</string>
+    <string name="app_notification_running">Eden Redfox працює</string>
     <string name="seconds">с</string>
 
     <!-- Spinbox strings -->

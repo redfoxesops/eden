@@ -5,7 +5,7 @@
     <string name="notice_notification_channel_description">Zobrazí oznámení v případě chyby.</string>
     <string name="notification_permission_not_granted">Oprávnění k zobrazení oznámení nebylo uděleno!</string>
     <string name="app_notification_channel_description">Oznámení emulátoru Eden</string>
-    <string name="app_notification_running">Eden je spuštěn</string>
+    <string name="app_notification_running">Eden Redfox je spuštěn</string>
     <string name="seconds">Sekundy</string>
 
     <!-- Spinbox strings -->

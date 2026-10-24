@@ -6,7 +6,7 @@
     <string name="notice_notification_channel_description">發生錯誤時顯示通知</string>
     <string name="notification_permission_not_granted">未授予通知權限！</string>
     <string name="app_notification_channel_description">Eden 模擬器通知</string>
-    <string name="app_notification_running">Eden 正在執行</string>
+    <string name="app_notification_running">Eden Redfox 正在執行</string>
     <string name="seconds">秒</string>
 
     <!-- Spinbox strings -->

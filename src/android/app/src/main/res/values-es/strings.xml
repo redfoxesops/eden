@@ -5,7 +5,7 @@
     <string name="notice_notification_channel_description">Mostrar notificaciones cuando algo vaya mal.</string>
     <string name="notification_permission_not_granted">¡Permiso de notificación no concedido!</string>
     <string name="app_notification_channel_description">Notificaciones del emulador Eden Switch</string>
-    <string name="app_notification_running">Eden se está ejecutando</string>
+    <string name="app_notification_running">Eden Redfox se está ejecutando</string>
     <string name="seconds">Segundos</string>
 
     <!-- Spinbox strings -->

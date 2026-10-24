@@ -6,7 +6,7 @@
     <string name="notice_notification_channel_description">عرض الإشعارات عند حدوث خطأ ما.</string>
     <string name="notification_permission_not_granted">لم يتم منح إذن الإشعار!</string>
     <string name="app_notification_channel_description">إشعارات محاكي Eden Switch</string>
-    <string name="app_notification_running">Eden قيد التشغيل</string>
+    <string name="app_notification_running">Eden Redfox قيد التشغيل</string>
     <string name="seconds">ثواني</string>
 
     <!-- Spinbox strings -->

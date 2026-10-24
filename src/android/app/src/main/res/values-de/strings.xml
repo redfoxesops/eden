@@ -5,7 +5,7 @@
     <string name="notice_notification_channel_description">Zeigt Benachrichtigungen an, wenn etwas schief läuft.</string>
     <string name="notification_permission_not_granted">Berechtigung für Benachrichtigungen nicht zugelassen!</string>
     <string name="app_notification_channel_description">Eden Switch Emulator Benachrichtigungen</string>
-    <string name="app_notification_running">Eden wird ausgeführt</string>
+    <string name="app_notification_running">Eden Redfox wird ausgeführt</string>
     <string name="seconds">Sekunden</string>
 
     <!-- Spinbox strings -->
