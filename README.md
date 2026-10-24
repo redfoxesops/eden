@@ -20,6 +20,12 @@
 Written in C++, with builds for Windows, Linux, macOS, Android, FreeBSD and more.
 </h4>
 
+> [!NOTE]
+> This is a personal fork of [Eden](https://git.eden-emu.dev/eden-emu/eden). It focuses on UI/UX
+> improvements (such as the Android input overlay). There are no plans to work on performance yet.
+> For official builds, support and the full project, see the
+> [original Eden repository](https://git.eden-emu.dev/eden-emu/eden).
+
 <p align="center">
     </a>
     <a href="https://discord.gg/HstXbPch7X">
