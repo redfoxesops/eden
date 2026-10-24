@@ -601,11 +601,14 @@ class SettingsFragmentPresenter(
             add(BooleanSetting.SHOW_INPUT_OVERLAY.key)
             add(BooleanSetting.OVERLAY_SNAP_TO_GRID.key)
             add(IntSetting.OVERLAY_GRID_SIZE.key)
+            add(BooleanSetting.OVERLAY_OUTLINE_STYLE.key)
             add(
                 LaunchableSetting(
                     titleId = R.string.edit_overlay_layout,
                     descriptionId = R.string.edit_overlay_layout_description,
                     launchIntent = { context ->
+                        // EmulationActivity reloads the config from disk on create
+                        NativeConfig.saveGlobalConfig()
                         EmulationActivity.launchForOverlayEdit(context)
                     }
                 )

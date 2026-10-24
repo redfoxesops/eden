@@ -28,6 +28,8 @@
     <string name="show_input_overlay_description">Display touch controls overlay during emulation</string>
     <string name="overlay_snap_to_grid">Snap to Grid</string>
     <string name="overlay_snap_to_grid_description">Snap overlay controls to a grid when editing</string>
+    <string name="overlay_outline_style">Outline Style</string>
+    <string name="overlay_outline_style_description">Draw overlay buttons as outlines instead of filled shapes</string>
     <string name="overlay_grid_size">Grid Size</string>
     <string name="overlay_grid_size_description">Size of the grid cells in pixels</string>
     <string name="input_overlay_behavior">Behavior</string>

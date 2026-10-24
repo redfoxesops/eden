@@ -1016,6 +1016,26 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
             FOLDABLE_OVERLAY_VERSION
         )
 
+        private val outlineDrawables = mapOf(
+            R.drawable.facebutton_a to R.drawable.facebutton_a_outline,
+            R.drawable.facebutton_b to R.drawable.facebutton_b_outline,
+            R.drawable.facebutton_x to R.drawable.facebutton_x_outline,
+            R.drawable.facebutton_y to R.drawable.facebutton_y_outline,
+            R.drawable.facebutton_plus to R.drawable.facebutton_plus_outline,
+            R.drawable.facebutton_minus to R.drawable.facebutton_minus_outline,
+            R.drawable.facebutton_home to R.drawable.facebutton_home_outline,
+            R.drawable.facebutton_screenshot to R.drawable.facebutton_screenshot_outline,
+            R.drawable.l_shoulder to R.drawable.l_shoulder_outline,
+            R.drawable.r_shoulder to R.drawable.r_shoulder_outline,
+            R.drawable.zl_trigger to R.drawable.zl_trigger_outline,
+            R.drawable.zr_trigger to R.drawable.zr_trigger_outline,
+            R.drawable.button_l3 to R.drawable.button_l3_outline,
+            R.drawable.button_r3 to R.drawable.button_r3_outline,
+            R.drawable.dpad_standard to R.drawable.dpad_standard_outline,
+            R.drawable.joystick to R.drawable.joystick_outline,
+            R.drawable.joystick_range to R.drawable.joystick_range_outline
+        )
+
         /**
          * Resizes a [Bitmap] by a given scale factor
          *
@@ -1025,7 +1045,12 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
          * @return The scaled [Bitmap]
          */
         private fun getBitmap(context: Context, drawableId: Int, scale: Float): Bitmap {
-            val vectorDrawable = ContextCompat.getDrawable(context, drawableId) as VectorDrawable
+            val id = if (BooleanSetting.OVERLAY_OUTLINE_STYLE.getBoolean()) {
+                outlineDrawables[drawableId] ?: drawableId
+            } else {
+                drawableId
+            }
+            val vectorDrawable = ContextCompat.getDrawable(context, id) as VectorDrawable
 
             val bitmap = Bitmap.createBitmap(
                 (vectorDrawable.intrinsicWidth * scale).toInt(),

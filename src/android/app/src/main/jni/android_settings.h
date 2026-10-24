@@ -158,6 +158,8 @@ namespace AndroidSettings {
                                                    Settings::Category::Overlay};
         Settings::Setting<bool> overlay_snap_to_grid{linkage, false, "overlay_snap_to_grid",
                                                      Settings::Category::Overlay};
+        Settings::Setting<bool> overlay_outline_style{linkage, false, "overlay_outline_style",
+                                                      Settings::Category::Overlay};
         Settings::Setting<s32> overlay_grid_size{linkage, 32, "overlay_grid_size",
                                                  Settings::Category::Overlay};
         Settings::Setting<bool> touchscreen{linkage, true, "touchscreen",
