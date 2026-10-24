@@ -432,6 +432,13 @@ abstract class SettingsItem(
                 )
             )
             put(
+                SwitchSetting(
+                    BooleanSetting.OVERLAY_OUTLINE_STYLE,
+                    titleId = R.string.overlay_outline_style,
+                    descriptionId = R.string.overlay_outline_style_description
+                )
+            )
+            put(
                 SliderSetting(
                     IntSetting.OVERLAY_GRID_SIZE,
                     titleId = R.string.overlay_grid_size,
