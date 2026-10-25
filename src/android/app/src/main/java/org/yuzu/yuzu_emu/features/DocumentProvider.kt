@@ -87,7 +87,7 @@ class DocumentProvider : DocumentsProvider() {
                 DocumentsContract.Root.FLAG_SUPPORTS_CREATE or
                     DocumentsContract.Root.FLAG_SUPPORTS_IS_CHILD
             )
-            add(DocumentsContract.Root.COLUMN_TITLE, context!!.getString(R.string.app_name))
+            add(DocumentsContract.Root.COLUMN_TITLE, context!!.getString(R.string.app_name_suffixed))
             add(DocumentsContract.Root.COLUMN_DOCUMENT_ID, getDocumentId(baseDirectory))
             add(DocumentsContract.Root.COLUMN_MIME_TYPES, "*/*")
             add(DocumentsContract.Root.COLUMN_AVAILABLE_BYTES, baseDirectory.freeSpace)
