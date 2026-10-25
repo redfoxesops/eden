@@ -690,6 +690,11 @@ class QuickSettings(val emulationFragment: EmulationFragment) {
         val targetSection = itemView.findViewById<ViewGroup>(R.id.frame_gen_target_section)
         val flowRow = itemView.findViewById<LinearLayout>(R.id.frame_gen_flow)
         val flowSection = itemView.findViewById<ViewGroup>(R.id.frame_gen_flow_section)
+        val flowManual = itemView.findViewById<LinearLayout>(R.id.frame_gen_flow_manual)
+        val flowSlider = itemView.findViewById<com.google.android.material.slider.Slider>(
+            R.id.frame_gen_flow_slider
+        )
+        val flowValue = itemView.findViewById<TextView>(R.id.frame_gen_flow_value)
 
         val multiplierNames =
             emulationFragment.resources.getStringArray(R.array.frameGenMultiplierNames)
@@ -697,14 +702,7 @@ class QuickSettings(val emulationFragment: EmulationFragment) {
             emulationFragment.resources.getIntArray(R.array.frameGenMultiplierValues)
         val targetValues =
             emulationFragment.resources.getIntArray(R.array.frameGenTargetRateValues)
-        val flowValues =
-            emulationFragment.resources.getIntArray(R.array.frameGenFlowScaleValues)
-
-        val columns = maxOf(
-            multiplierValues.size + 1,
-            targetValues.size,
-            flowValues.size + 1
-        ).toFloat()
+        val columns = maxOf(multiplierValues.size + 1, targetValues.size).toFloat()
         multiplierRow.weightSum = columns
         targetRow.weightSum = columns
         flowRow.weightSum = columns
@@ -731,13 +729,9 @@ class QuickSettings(val emulationFragment: EmulationFragment) {
 
         val autoCell = addFrameGenCell(inflater, flowRow)
         autoCell.setText(R.string.frame_gen_flow_auto)
-
-        val flowCells = mutableListOf<TextView>()
-        for (value in flowValues) {
-            val cell = addFrameGenCell(inflater, flowRow)
-            cell.text = "$value%"
-            flowCells.add(cell)
-        }
+        flowRow.removeView(autoCell)
+        flowRow.addView(autoCell, 0)
+        (flowManual.layoutParams as LinearLayout.LayoutParams).weight = columns - 1
 
         val inactiveAlpha = 0.38f
 
@@ -781,10 +775,11 @@ class QuickSettings(val emulationFragment: EmulationFragment) {
             autoCell.isEnabled = enabled
             autoCell.isSelected = enabled && flowAuto
 
-            flowCells.forEachIndexed { index, cell ->
-                cell.isEnabled = enabled
-                cell.isSelected = enabled && !flowAuto && flowValues[index] == flowScale
-            }
+            flowSlider.isEnabled = enabled
+            flowSlider.value = (Math.round(flowScale / 5f) * 5f)
+                .coerceIn(flowSlider.valueFrom, flowSlider.valueTo)
+            flowValue.text = "${flowSlider.value.toInt()}%"
+            flowManual.alpha = if (enabled && !flowAuto) 1.0f else inactiveAlpha
         }
 
         powerCell.setOnClickListener {
@@ -822,13 +817,30 @@ class QuickSettings(val emulationFragment: EmulationFragment) {
             refresh()
         }
 
-        flowCells.forEachIndexed { index, cell ->
-            cell.setOnClickListener {
-                IntSetting.RENDERER_FRAME_GEN_FLOW_SCALE.setInt(flowValues[index])
-                BooleanSetting.RENDERER_FRAME_GEN_FLOW_SCALE_AUTO.setBoolean(false)
-                saveSettings()
-                refresh()
+        flowSlider.addOnChangeListener { _, value, fromUser ->
+            flowValue.text = "${value.toInt()}%"
+            if (fromUser) {
+                autoCell.isSelected = false
+                flowManual.alpha = 1.0f
             }
+        }
+
+        // Commit on release, every change rebuilds the frame gen chain
+        flowSlider.setOnTouchListener { _, event ->
+            val drawer = emulationFragment.view?.findViewById<DrawerLayout>(R.id.drawer_layout)
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> drawer?.requestDisallowInterceptTouchEvent(true)
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    drawer?.requestDisallowInterceptTouchEvent(false)
+                    flowSlider.post {
+                        IntSetting.RENDERER_FRAME_GEN_FLOW_SCALE.setInt(flowSlider.value.toInt())
+                        BooleanSetting.RENDERER_FRAME_GEN_FLOW_SCALE_AUTO.setBoolean(false)
+                        saveSettings()
+                        refresh()
+                    }
+                }
+            }
+            false
         }
 
         refresh()
