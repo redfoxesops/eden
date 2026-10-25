@@ -15,6 +15,8 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.core.net.toUri
+import androidx.core.text.bold
+import androidx.core.text.buildSpannedString
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -282,11 +284,8 @@ object EdenImport {
             }
             val all = Item.values().toList()
             val checked = all.map { it.defaultChecked }.toBooleanArray()
-            val title = context.getString(
-                if (warnOverwrite) R.string.import_from_eden_overwrite_title else R.string.import_from_eden
-            )
             MaterialAlertDialogBuilder(context)
-                .setTitle(title)
+                .setTitle(R.string.import_from_eden)
                 .setMultiChoiceItems(
                     all.map { context.getString(it.titleId) }.toTypedArray(),
                     checked
@@ -306,9 +305,16 @@ object EdenImport {
             if (needsFolders) {
                 steps += "\n\n" + context.getString(R.string.import_from_eden_steps_folders)
             }
+            val message = buildSpannedString {
+                if (warnOverwrite) {
+                    bold { append(context.getString(R.string.import_from_eden_overwrite_warning)) }
+                    append("\n\n")
+                }
+                append(steps)
+            }
             MaterialAlertDialogBuilder(context)
                 .setTitle(R.string.import_from_eden_steps_title)
-                .setMessage(steps)
+                .setMessage(message)
                 .setPositiveButton(R.string.import_from_eden_continue) { _, _ ->
                     treeLauncher.launch(DocumentsContract.buildDocumentUri("$pkg.user", "root"))
                 }

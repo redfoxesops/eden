@@ -1897,7 +1897,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="import_from_eden">Import from Eden</string>
     <string name="import_from_eden_description">Copy keys, firmware, saves, mods and settings from an installed Eden</string>
     <string name="import_from_eden_setup_description">Already using Eden? Copy your keys, firmware, saves and settings. You can skip this.</string>
-    <string name="import_from_eden_overwrite_title">Import from Eden (overwrites existing data)</string>
+    <string name="import_from_eden_overwrite_warning">Warning: the selected items will overwrite the existing data in Eden Redfox, including saves.</string>
     <string name="import_from_eden_choose_source">Import from which Eden?</string>
     <string name="import_from_eden_source_standard" translatable="false">Eden</string>
     <string name="import_from_eden_source_nightly" translatable="false">Eden Nightly</string>
