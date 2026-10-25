@@ -387,7 +387,8 @@ fun getGitVersion(): String {
     } else {
         gitVersion
     }
-    return versionName.ifEmpty { "0.0" } + "-redfox"
+    // Redfox release tags already carry the suffix (v0.2.0-redfox.N)
+    return versionName.ifEmpty { "0.0" }.let { if ("redfox" in it) it else "$it-redfox" }
 }
 
 afterEvaluate {
