@@ -29,6 +29,7 @@ import org.yuzu.yuzu_emu.model.GamesViewModel
 import org.yuzu.yuzu_emu.model.HomeViewModel
 import org.yuzu.yuzu_emu.model.Installable
 import org.yuzu.yuzu_emu.model.TaskState
+import org.yuzu.yuzu_emu.utils.EdenImport
 import org.yuzu.yuzu_emu.utils.FileUtil
 import org.yuzu.yuzu_emu.utils.InstallableActions
 import org.yuzu.yuzu_emu.utils.NativeConfig
@@ -81,7 +82,16 @@ class InstallableFragment : Fragment() {
             }
         }
 
-        val installables = listOf(
+        val installables = listOfNotNull(
+            if (EdenImport.installedSources(requireContext()).isNotEmpty()) {
+                Installable(
+                    R.string.import_from_eden,
+                    R.string.import_from_eden_description,
+                    install = { edenImporter.start() }
+                )
+            } else {
+                null
+            },
             Installable(
                 R.string.user_data,
                 R.string.user_data_description,
@@ -186,6 +196,8 @@ class InstallableFragment : Fragment() {
 
             windowInsets
         }
+
+    private val edenImporter = EdenImport.Importer(this, warnOverwrite = true)
 
     private val getProdKeyLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { result ->

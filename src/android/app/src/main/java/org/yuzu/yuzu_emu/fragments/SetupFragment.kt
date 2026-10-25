@@ -42,6 +42,7 @@ import org.yuzu.yuzu_emu.model.SetupPage
 import org.yuzu.yuzu_emu.model.PageState
 import org.yuzu.yuzu_emu.ui.main.MainActivity
 import org.yuzu.yuzu_emu.utils.DirectoryInitialization
+import org.yuzu.yuzu_emu.utils.EdenImport
 import org.yuzu.yuzu_emu.utils.LosslessScalingHelper
 import org.yuzu.yuzu_emu.utils.NativeConfig
 import org.yuzu.yuzu_emu.utils.ViewUtils
@@ -148,6 +149,36 @@ class SetupFragment : Fragment() {
                     }
                 )
             )
+            if (EdenImport.installedSources(requireContext()).isNotEmpty()) {
+                add(
+                    SetupPage(
+                        R.drawable.ic_import,
+                        R.string.import_from_eden,
+                        R.string.import_from_eden_setup_description,
+                        mutableListOf<PageButton>().apply {
+                            add(
+                                PageButton(
+                                    R.drawable.ic_import,
+                                    R.string.import_from_eden,
+                                    R.string.import_from_eden_description,
+                                    {
+                                        pageButtonCallback = it
+                                        edenImporter.start()
+                                    },
+                                    {
+                                        if (edenImported) {
+                                            ButtonState.BUTTON_ACTION_COMPLETE
+                                        } else {
+                                            ButtonState.BUTTON_ACTION_INCOMPLETE
+                                        }
+                                    }
+                                )
+                            )
+                        },
+                        { if (edenImported) PageState.COMPLETE else PageState.INCOMPLETE }
+                    )
+                )
+            }
             add(
                 SetupPage(
                     R.drawable.ic_folder_open,
@@ -321,6 +352,9 @@ class SetupFragment : Fragment() {
                 }
 
                 previousPosition = position
+
+                // Re-evaluate buttons, earlier pages (e.g. Import from Eden) may have completed them
+                binding.viewPager2.adapter?.notifyItemChanged(position)
             }
         })
 
@@ -490,6 +524,13 @@ class SetupFragment : Fragment() {
                 onDialogComplete = { checkForButtonState.invoke() }
             }.show(parentFragmentManager, ProgressDialogFragment.TAG)
         }
+
+    private var edenImported = false
+
+    private val edenImporter = EdenImport.Importer(this, warnOverwrite = false) {
+        edenImported = true
+        checkForButtonState.invoke()
+    }
 
     val getGamesDirectory =
         registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { result ->

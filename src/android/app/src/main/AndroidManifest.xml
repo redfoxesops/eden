@@ -33,6 +33,13 @@ SPDX-License-Identifier: GPL-3.0-or-later
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
 
+    <!-- Import from Eden -->
+    <queries>
+        <package android:name="dev.eden.eden_emulator" />
+        <package android:name="dev.eden.eden_emulator.nightly" />
+        <package android:name="dev.legacy.eden_emulator" />
+    </queries>
+
     <application
         android:name="org.yuzu.yuzu_emu.YuzuApplication"
         android:label="${appNameBase}${appNameSuffix}"

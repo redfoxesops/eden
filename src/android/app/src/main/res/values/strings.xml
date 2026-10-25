@@ -1893,4 +1893,31 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     <string name="add_folders">Add Folder</string>
     <string name="percent">%1$d%%</string>
 
+    <!-- Import from Eden -->
+    <string name="import_from_eden">Import from Eden</string>
+    <string name="import_from_eden_description">Copy keys, firmware, saves, mods and settings from an installed Eden</string>
+    <string name="import_from_eden_setup_description">Already using Eden? Copy your keys, firmware, saves and settings. You can skip this.</string>
+    <string name="import_from_eden_overwrite_title">Import from Eden (overwrites existing data)</string>
+    <string name="import_from_eden_choose_source">Import from which Eden?</string>
+    <string name="import_from_eden_source_standard" translatable="false">Eden</string>
+    <string name="import_from_eden_source_nightly" translatable="false">Eden Nightly</string>
+    <string name="import_from_eden_source_legacy" translatable="false">Eden Legacy</string>
+    <string name="import_from_eden_mods">Mods &amp; cheats</string>
+    <string name="import_from_eden_config">Settings &amp; controls</string>
+    <string name="import_from_eden_game_folders">Game folders</string>
+    <string name="import_from_eden_external_content">Updates &amp; DLC (folders)</string>
+    <string name="import_from_eden_installed_content">Updates &amp; DLC (installed, can be large)</string>
+    <string name="import_from_eden_gpu_drivers">GPU drivers</string>
+    <string name="import_from_eden_start">Import</string>
+    <string name="import_from_eden_steps_title">How to import</string>
+    <string name="import_from_eden_steps">1. In the file picker, open the side menu (☰) and choose \"%1$s\".\n2. Tap \"Use this folder\", then \"Allow\".\n3. Wait for the copy to finish.</string>
+    <string name="import_from_eden_steps_folders">4. Then the picker opens once for each of your game and update/DLC folders. Tap \"Use this folder\", then \"Allow\" each time.</string>
+    <string name="import_from_eden_continue">Continue</string>
+    <string name="import_from_eden_pick_game_folder">%1$s folder \"%2$s\": tap \"Use this folder\", then \"Allow\"</string>
+    <string name="import_from_eden_all_files_description">Eden stores some data in a custom folder. Grant All Files Access to copy it.</string>
+    <string name="import_from_eden_importing">Importing from Eden</string>
+    <string name="import_from_eden_scanning">Scanning Eden data…</string>
+    <string name="import_from_eden_no_space">Not enough free storage to copy the selected data.</string>
+    <string name="import_from_eden_success">Import from Eden complete</string>
+
 </resources>

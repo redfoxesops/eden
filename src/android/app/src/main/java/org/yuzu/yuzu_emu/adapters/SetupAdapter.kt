@@ -32,6 +32,7 @@ class SetupAdapter(val activity: AppCompatActivity, pages: List<SetupPage>) :
     inner class SetupPageViewHolder(val binding: PageSetupBinding) :
         AbstractViewHolder<SetupPage>(binding), SetupCallback {
         override fun bind(model: SetupPage) {
+            binding.pageButtonContainer.removeAllViews()
             if (model.pageSteps.invoke() == PageState.COMPLETE) {
                 onStepCompleted(0, pageFullyCompleted = true)
             }
