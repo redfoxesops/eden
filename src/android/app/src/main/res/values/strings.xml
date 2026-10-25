@@ -30,6 +30,10 @@
     <string name="overlay_snap_to_grid_description">Snap overlay controls to a grid when editing</string>
     <string name="overlay_outline_style">Outline Style</string>
     <string name="overlay_outline_style_description">Draw overlay buttons as outlines instead of filled shapes</string>
+    <string name="analog_sticks">Analog Sticks</string>
+    <string name="floating_sticks">Floating Sticks</string>
+    <string name="floating_sticks_description">Touch an empty spot on the left or right half of the screen to spawn that stick. Disables the game\'s touchscreen input.</string>
+    <string name="floating_sticks_warning">Games that need the touchscreen will not be playable while Floating Sticks is on. You can turn it off for individual games in their per-game settings.</string>
     <string name="overlay_grid_size">Grid Size</string>
     <string name="overlay_grid_size_description">Size of the grid cells in pixels</string>
     <string name="input_overlay_behavior">Behavior</string>

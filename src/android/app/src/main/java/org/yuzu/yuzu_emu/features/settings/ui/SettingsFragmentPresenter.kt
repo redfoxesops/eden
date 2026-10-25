@@ -439,15 +439,15 @@ class SettingsFragmentPresenter(
                         menuKey = MenuTag.SECTION_SOC_OVERLAY
                     )
                 )
-                add(
-                    SubmenuSetting(
-                        titleId = R.string.input_overlay_options,
-                        iconId = R.drawable.ic_controller,
-                        descriptionId = R.string.input_overlay_options_description,
-                        menuKey = MenuTag.SECTION_INPUT_OVERLAY
-                    )
-                )
             }
+            add(
+                SubmenuSetting(
+                    titleId = R.string.input_overlay_options,
+                    iconId = R.drawable.ic_controller,
+                    descriptionId = R.string.input_overlay_options_description,
+                    menuKey = MenuTag.SECTION_INPUT_OVERLAY
+                )
+            )
             add(
                 SubmenuSetting(
                     titleId = R.string.preferences_audio,
@@ -602,21 +602,26 @@ class SettingsFragmentPresenter(
             add(BooleanSetting.OVERLAY_SNAP_TO_GRID.key)
             add(IntSetting.OVERLAY_GRID_SIZE.key)
             add(BooleanSetting.OVERLAY_OUTLINE_STYLE.key)
-            add(
-                LaunchableSetting(
-                    titleId = R.string.edit_overlay_layout,
-                    descriptionId = R.string.edit_overlay_layout_description,
-                    launchIntent = { context ->
-                        // EmulationActivity reloads the config from disk on create
-                        NativeConfig.saveGlobalConfig()
-                        EmulationActivity.launchForOverlayEdit(context)
-                    }
+            // Only the floating sticks setting can be overridden per game
+            if (!NativeConfig.isPerGameConfigLoaded()) {
+                add(
+                    LaunchableSetting(
+                        titleId = R.string.edit_overlay_layout,
+                        descriptionId = R.string.edit_overlay_layout_description,
+                        launchIntent = { context ->
+                            // EmulationActivity reloads the config from disk on create
+                            NativeConfig.saveGlobalConfig()
+                            EmulationActivity.launchForOverlayEdit(context)
+                        }
+                    )
                 )
-            )
-            add(HeaderSetting(R.string.input_overlay_behavior))
-            add(BooleanSetting.ENABLE_INPUT_OVERLAY_AUTO_HIDE.key)
-            add(IntSetting.INPUT_OVERLAY_AUTO_HIDE.key)
-            add(BooleanSetting.HIDE_OVERLAY_ON_CONTROLLER_INPUT.key)
+                add(HeaderSetting(R.string.input_overlay_behavior))
+                add(BooleanSetting.ENABLE_INPUT_OVERLAY_AUTO_HIDE.key)
+                add(IntSetting.INPUT_OVERLAY_AUTO_HIDE.key)
+                add(BooleanSetting.HIDE_OVERLAY_ON_CONTROLLER_INPUT.key)
+            }
+            add(HeaderSetting(R.string.analog_sticks))
+            add(BooleanSetting.FLOATING_STICKS.key)
         }
     }
 

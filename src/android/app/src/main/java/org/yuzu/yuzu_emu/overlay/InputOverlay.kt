@@ -279,8 +279,18 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
             shouldUpdateView = true
         }
 
+        val floating = BooleanSetting.FLOATING_STICKS.getBoolean()
+        val actionPointerId = event.getPointerId(event.actionIndex)
         for (joystick in overlayJoysticks) {
-            if (!joystick.updateStatus(event)) {
+            // Each stick spawns on its half of the screen, unless a button took the touch
+            val floatingArea = when {
+                !floating -> null
+                isTouchInputConsumed(actionPointerId) && joystick.trackId != actionPointerId ->
+                    Rect()
+                joystick.joystick == NativeAnalog.LStick -> Rect(0, 0, width / 2, height)
+                else -> Rect(width / 2, 0, width, height)
+            }
+            if (!joystick.updateStatus(event, floatingArea)) {
                 continue
             }
             NativeInput.onOverlayJoystickEvent(
@@ -302,7 +312,7 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
             invalidate()
         }
 
-        if (!BooleanSetting.TOUCHSCREEN.getBoolean()) {
+        if (floating || !BooleanSetting.TOUCHSCREEN.getBoolean()) {
             return true
         }
 
@@ -486,7 +496,9 @@ class InputOverlay(context: Context, attrs: AttributeSet?) :
             }
         }
 
+        // Floating sticks are hidden and have no fixed position to edit
         for (joystick in overlayJoysticks) {
+            if (BooleanSetting.FLOATING_STICKS.getBoolean()) break
             when (event.action) {
                 MotionEvent.ACTION_DOWN,
                 MotionEvent.ACTION_POINTER_DOWN -> if (joystickBeingConfigured == null &&

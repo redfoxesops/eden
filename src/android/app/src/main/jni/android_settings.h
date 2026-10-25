@@ -160,6 +160,12 @@ namespace AndroidSettings {
                                                      Settings::Category::Overlay};
         Settings::Setting<bool> overlay_outline_style{linkage, false, "overlay_outline_style",
                                                       Settings::Category::Overlay};
+        // Category::Android so it can be overridden per game
+        Settings::SwitchableSetting<bool> floating_sticks{linkage, false, "floating_sticks",
+                                                          Settings::Category::Android,
+                                                          Settings::Specialization::Default,
+                                                          true,
+                                                          true};
         Settings::Setting<s32> overlay_grid_size{linkage, 32, "overlay_grid_size",
                                                  Settings::Category::Overlay};
         Settings::Setting<bool> touchscreen{linkage, true, "touchscreen",

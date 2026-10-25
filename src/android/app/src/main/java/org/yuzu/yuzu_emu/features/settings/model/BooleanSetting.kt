@@ -54,6 +54,7 @@ enum class BooleanSetting(override val key: String) : AbstractBooleanSetting {
     SHOW_INPUT_OVERLAY("show_input_overlay"),
     OVERLAY_SNAP_TO_GRID("overlay_snap_to_grid"),
     OVERLAY_OUTLINE_STYLE("overlay_outline_style"),
+    FLOATING_STICKS("floating_sticks"),
     TOUCHSCREEN("touchscreen"),
     AIRPLANE_MODE("airplane_mode"),
 
