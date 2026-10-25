@@ -74,6 +74,7 @@ import org.yuzu.yuzu_emu.databinding.FragmentEmulationBinding
 import org.yuzu.yuzu_emu.dialogs.QuickSettings
 import org.yuzu.yuzu_emu.features.input.NativeInput
 import org.yuzu.yuzu_emu.features.settings.model.BooleanSetting
+import org.yuzu.yuzu_emu.features.settings.model.FsrSharpnessSetting
 import org.yuzu.yuzu_emu.features.settings.model.IntSetting
 import org.yuzu.yuzu_emu.features.settings.model.Settings
 import org.yuzu.yuzu_emu.features.settings.model.Settings.EmulationOrientation
@@ -1217,9 +1218,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 quickSettings.addSliderSetting(
                     R.string.fsr_sharpness,
                     container,
-                    IntSetting.FSR_SHARPENING_SLIDER,
-                    minValue = 0,
-                    maxValue = 200,
+                    FsrSharpnessSetting,
                     units = "%"
                 )
             }
