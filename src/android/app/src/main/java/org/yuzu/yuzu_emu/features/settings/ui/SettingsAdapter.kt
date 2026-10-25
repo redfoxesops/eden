@@ -18,6 +18,7 @@ import androidx.recyclerview.widget.AsyncDifferConfig
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import com.google.android.material.datepicker.MaterialDatePicker
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.timepicker.MaterialTimePicker
 import com.google.android.material.timepicker.TimeFormat
 import org.yuzu.yuzu_emu.R
@@ -33,6 +34,7 @@ import org.yuzu.yuzu_emu.databinding.ListItemSettingsHeaderBinding
 import org.yuzu.yuzu_emu.features.input.NativeInput
 import org.yuzu.yuzu_emu.features.input.model.AnalogDirection
 import org.yuzu.yuzu_emu.features.settings.model.AbstractIntSetting
+import org.yuzu.yuzu_emu.features.settings.model.BooleanSetting
 import org.yuzu.yuzu_emu.features.settings.model.Settings
 import org.yuzu.yuzu_emu.features.settings.model.view.*
 import org.yuzu.yuzu_emu.features.settings.ui.viewholder.*
@@ -155,6 +157,22 @@ class SettingsAdapter(
     }
 
     fun onBooleanClick(item: SwitchSetting, checked: Boolean, position: Int) {
+        if (checked && item.setting == BooleanSetting.FLOATING_STICKS) {
+            MaterialAlertDialogBuilder(fragment.requireContext())
+                .setTitle(R.string.floating_sticks)
+                .setMessage(R.string.floating_sticks_warning)
+                .setPositiveButton(android.R.string.ok) { _, _ ->
+                    applyBoolean(item, true, position)
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .setOnDismissListener { notifyItemChanged(position) }
+                .show()
+            return
+        }
+        applyBoolean(item, checked, position)
+    }
+
+    private fun applyBoolean(item: SwitchSetting, checked: Boolean, position: Int) {
         item.setChecked(checked)
         notifyItemChanged(position)
         settingsViewModel.setShouldReloadSettingsList(true)

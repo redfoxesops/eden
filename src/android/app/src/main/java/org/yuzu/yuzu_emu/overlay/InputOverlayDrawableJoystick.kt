@@ -106,12 +106,14 @@ class InputOverlayDrawableJoystick(
     }
 
     fun draw(canvas: Canvas?) {
+        // Floating sticks stay hidden until touched
+        if (BooleanSetting.FLOATING_STICKS.getBoolean() && trackId == -1) return
         outerBitmap.draw(canvas!!)
         currentStateBitmapDrawable.draw(canvas)
         boundsBoxBitmap.draw(canvas)
     }
 
-    fun updateStatus(event: MotionEvent): Boolean {
+    fun updateStatus(event: MotionEvent, floatingArea: Rect? = null): Boolean {
         val pointerIndex = event.actionIndex
         val xPosition = event.getX(pointerIndex).toInt()
         val yPosition = event.getY(pointerIndex).toInt()
@@ -123,13 +125,18 @@ class InputOverlayDrawableJoystick(
             motionEvent == MotionEvent.ACTION_UP || motionEvent == MotionEvent.ACTION_POINTER_UP
 
         if (isActionDown) {
-            if (!bounds.contains(xPosition, yPosition)) {
+            val hit = if (floatingArea != null) {
+                trackId == -1 && floatingArea.contains(xPosition, yPosition)
+            } else {
+                bounds.contains(xPosition, yPosition)
+            }
+            if (!hit) {
                 return false
             }
             pressedState = true
             outerBitmap.alpha = 0
             boundsBoxBitmap.alpha = opacity
-            if (BooleanSetting.JOYSTICK_REL_CENTER.getBoolean()) {
+            if (floatingArea != null || BooleanSetting.JOYSTICK_REL_CENTER.getBoolean()) {
                 virtBounds.offset(
                     xPosition - virtBounds.centerX(),
                     yPosition - virtBounds.centerY()
