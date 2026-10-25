@@ -16,6 +16,7 @@ import org.yuzu.yuzu_emu.features.settings.model.AbstractBooleanSetting
 import org.yuzu.yuzu_emu.features.settings.model.AbstractSetting
 import org.yuzu.yuzu_emu.features.settings.model.BooleanSetting
 import org.yuzu.yuzu_emu.features.settings.model.ByteSetting
+import org.yuzu.yuzu_emu.features.settings.model.FsrSharpnessSetting
 import org.yuzu.yuzu_emu.features.settings.model.IntSetting
 import org.yuzu.yuzu_emu.features.settings.model.LongSetting
 import org.yuzu.yuzu_emu.features.settings.model.ShortSetting
@@ -645,10 +646,9 @@ abstract class SettingsItem(
             )
             put(
                 SliderSetting(
-                    IntSetting.FSR_SHARPENING_SLIDER,
+                    FsrSharpnessSetting,
                     titleId = R.string.fsr_sharpness,
                     descriptionId = R.string.fsr_sharpness_description,
-                    max = 200,
                     units = "%"
                 )
             )
