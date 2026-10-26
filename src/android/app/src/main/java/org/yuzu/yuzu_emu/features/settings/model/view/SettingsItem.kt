@@ -556,6 +556,13 @@ abstract class SettingsItem(
             )
             put(
                 SwitchSetting(
+                    BooleanSetting.SHOW_FRAME_GEN_FPS,
+                    R.string.show_frame_gen_fps,
+                    descriptionId = R.string.show_frame_gen_fps_description
+                )
+            )
+            put(
+                SwitchSetting(
                     BooleanSetting.SHOW_SHADERS_BUILDING,
                     R.string.show_shaders_building,
                     descriptionId = R.string.show_shaders_building_description

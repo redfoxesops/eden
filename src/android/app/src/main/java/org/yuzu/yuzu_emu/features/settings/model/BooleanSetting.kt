@@ -74,6 +74,7 @@ enum class BooleanSetting(override val key: String) : AbstractBooleanSetting {
     SHOW_PERFORMANCE_OVERLAY("show_performance_overlay"),
 
     SHOW_FPS("show_fps"),
+    SHOW_FRAME_GEN_FPS("show_frame_gen_fps"),
     SHOW_FRAMETIME("show_frame_time"),
     SHOW_APP_RAM_USAGE("show_app_ram_usage"),
     SHOW_SYSTEM_RAM_USAGE("show_system_ram_usage"),

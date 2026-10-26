@@ -208,6 +208,11 @@ object NativeLibrary {
     external fun getShadersBuilding(): Int
 
     /**
+     * Returns the total number of frames presented by frame generation.
+     */
+    external fun getGeneratedFrames(): Long
+
+    /**
      * Returns the current CPU backend.
      */
     external fun getCpuBackend(): String
