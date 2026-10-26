@@ -141,6 +141,10 @@ namespace AndroidSettings {
                                                 Settings::Category::Overlay,
                                                 Settings::Specialization::Default, true, true,
                                                 &show_performance_overlay};
+        Settings::Setting<bool> show_frame_gen_fps{linkage, true, "show_frame_gen_fps",
+                                                   Settings::Category::Overlay,
+                                                   Settings::Specialization::Default, true, true,
+                                                   &show_performance_overlay};
         Settings::Setting<bool> show_shaders_building{linkage, true, "show_shaders_building",
                                                       Settings::Category::Overlay,
                                                       Settings::Specialization::Default, true, true,

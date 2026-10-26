@@ -1015,6 +1015,14 @@ jint Java_org_yuzu_yuzu_1emu_NativeLibrary_getShadersBuilding(JNIEnv* env, jclas
     return j_shaders;
 }
 
+jlong Java_org_yuzu_yuzu_1emu_NativeLibrary_getGeneratedFrames(JNIEnv* env, jclass clazz) {
+    if (!EmulationSession::GetInstance().IsRunning()) {
+        return 0;
+    }
+    return static_cast<jlong>(
+        EmulationSession::GetInstance().System().GPU().Renderer().GetGeneratedFrames());
+}
+
 jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getCpuBackend(JNIEnv* env, jclass clazz) {
     if (Settings::IsNceEnabled()) {
         return Common::Android::ToJString(env, "NCE");

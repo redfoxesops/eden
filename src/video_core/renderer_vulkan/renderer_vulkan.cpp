@@ -235,6 +235,7 @@ void RendererVulkan::Composite(std::span<const Tegra::FramebufferConfig> framebu
         scheduler.Flush(*generated->render_ready);
         present_manager.Present(generated);
     }
+    m_generated_frames.fetch_add(generated_frames, std::memory_order_relaxed);
 #endif
 
     scheduler.Flush(*frame->render_ready);

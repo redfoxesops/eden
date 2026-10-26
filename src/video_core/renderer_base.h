@@ -62,6 +62,10 @@ public:
         return m_current_frame;
     }
 
+    [[nodiscard]] u64 GetGeneratedFrames() const {
+        return m_generated_frames.load(std::memory_order_relaxed);
+    }
+
     [[nodiscard]] Core::Frontend::GraphicsContext& Context() {
         return *context;
     }
@@ -103,6 +107,7 @@ protected:
     std::unique_ptr<Core::Frontend::GraphicsContext> context;
     f32 m_current_fps = 0.0f; ///< Current framerate, should be set by the renderer
     int m_current_frame = 0;  ///< Current frame, should be set by the renderer
+    std::atomic<u64> m_generated_frames{0}; ///< Frames presented by frame generation
 
     RendererSettings renderer_settings;
 

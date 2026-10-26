@@ -1538,6 +1538,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             val FRAMETIME = 2
             //val SPEED = 3
             val sb = StringBuilder()
+            var lastGeneratedFrames = NativeLibrary.getGeneratedFrames()
+            var lastStatsTime = SystemClock.elapsedRealtime()
             perfStatsUpdater = {
                 if (emulationViewModel.emulationStarted.value &&
                     !emulationViewModel.isEmulationStopping.value
@@ -1551,6 +1553,21 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     if (BooleanSetting.SHOW_FPS.getBoolean(needsGlobal)) {
                         var fpsText = String.format("FPS: %.1f", actualFps)
                         sb.append(fpsText)
+                    }
+
+                    val generatedFrames = NativeLibrary.getGeneratedFrames()
+                    val now = SystemClock.elapsedRealtime()
+                    val generatedFps = if (now > lastStatsTime) {
+                        (generatedFrames - lastGeneratedFrames) * 1000.0 / (now - lastStatsTime)
+                    } else {
+                        0.0
+                    }
+                    lastGeneratedFrames = generatedFrames
+                    lastStatsTime = now
+
+                    if (BooleanSetting.SHOW_FRAME_GEN_FPS.getBoolean(needsGlobal) && generatedFps > 0) {
+                        if (sb.isNotEmpty()) sb.append(" | ")
+                        sb.append(String.format("FG: %.1f", actualFps + generatedFps))
                     }
 
                     if (BooleanSetting.SHOW_FRAMETIME.getBoolean(needsGlobal)) {

@@ -75,6 +75,8 @@
     <string name="bat_temperature_unit">Battery Temperature Units</string>
     <string name="show_power_info">Show Battery Info</string>
     <string name="show_power_info_description">Display current power draw and remaining capacity on battery</string>
+    <string name="show_frame_gen_fps">Show Frame Gen FPS</string>
+    <string name="show_frame_gen_fps_description">Display frames per second including generated frames</string>
     <string name="show_shaders_building">Show Shaders Building</string>
     <string name="show_shaders_building_description">Display current number of shaders being built</string>
     <string name="pipeline_worker_cores">Pipeline Worker Threads</string>
