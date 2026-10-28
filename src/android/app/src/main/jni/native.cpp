@@ -91,6 +91,7 @@ extern "C" {
 #include "hid_core/hid_core.h"
 #include "hid_core/hid_types.h"
 #include "input_common/drivers/virtual_amiibo.h"
+#include "jni/android_settings.h"
 #include "jni/native.h"
 #include "video_core/frame_gen/lossless_dll.h"
 #include "video_core/renderer_base.h"
@@ -293,6 +294,7 @@ Core::SystemResultStatus EmulationSession::InitializeEmulation(const std::string
     m_software_keyboard = android_keyboard.get();
     m_system.SetShuttingDown(false);
     m_system.ApplySettings();
+    Common::SetCpuCoreMask(static_cast<u32>(AndroidSettings::values.cpu_core_mask.GetValue()));
     Settings::LogSettings();
     m_system.HIDCore().ReloadInputDevices();
     m_system.SetFrontendAppletSet({
@@ -376,6 +378,7 @@ void EmulationSession::ShutdownEmulation() {
         m_system.DetachDebugger();
         m_system.ShutdownMainProcess();
         m_load_result = Core::SystemResultStatus::ErrorNotInitialized;
+        Common::SetCpuCoreMask(0);
         m_window.reset();
         OnEmulationStopped(Core::SystemResultStatus::Success);
         return;

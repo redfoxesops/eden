@@ -544,6 +544,12 @@
     <string name="custom_cpu_ticks">Custom CPU Ticks</string>
     <string name="custom_cpu_ticks_description">Set a custom value of CPU ticks. Higher values can increase performance, but may also cause the game to freeze. A range of 77–21000 is recommended.</string>
     <string name="cpu_ticks">Ticks</string>
+    <string name="cpu_cores">CPU Cores</string>
+    <string name="cpu_cores_description">Host CPU cores the emulator may run on. Using fewer cores lowers heat and power use but can reduce performance.</string>
+    <string name="cpu_cores_all">All cores</string>
+    <string name="cpu_cores_check_all">Check all</string>
+    <string name="cpu_core">CPU %1$d</string>
+    <string name="cpu_core_frequency">CPU %1$d · %2$.2f GHz</string>
     <string name="memory_layout">Memory Layout</string>
     <string name="memory_layout_description">(EXPERIMENTAL) Change the emulated memory layout. This setting will not increase performance, but may help with games utilizing high resolutions via mods. Do not use on phones with 8GB of RAM or less. Only works on the Dynarmic (JIT) backend.</string>
 

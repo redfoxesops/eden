@@ -89,6 +89,7 @@ int NiceValueForPriority(Common::ThreadPriority priority) {
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <dirent.h>
 #include <fstream>
 #include <mutex>
 #include <vector>
@@ -122,11 +123,13 @@ struct CoreInfo {
 
 struct CpuTopologyState {
     std::mutex topology_mutex;
+    cpu_set_t process{};
     cpu_set_t allowed{};
     cpu_set_t performance{};
     cpu_set_t efficiency{};
     bool separated = false;
     bool initialized = false;
+    u64 core_mask = 0;
 
     pid_t canary_tid = 0;
     cpu_set_t canary_mask{};
@@ -240,17 +243,34 @@ bool MidrsAreDistinct(const std::vector<CoreInfo>& cores) {
 void ComputeTopologyLocked(CpuTopologyState& state) {
     state.initialized = true;
     state.separated = false;
+    CPU_ZERO(&state.process);
     CPU_ZERO(&state.allowed);
     CPU_ZERO(&state.performance);
     CPU_ZERO(&state.efficiency);
 
-    if (sched_getaffinity(getpid(), sizeof(state.allowed), &state.allowed) != 0) {
+    if (sched_getaffinity(getpid(), sizeof(state.process), &state.process) != 0) {
         LOG_WARNING(Common, "Could not query process CPU affinity: {}",
                     ::Common::GetLastErrorMsg());
         return;
     }
+    state.allowed = state.process;
 
     const s32 total = PossibleCpuCount();
+    if (state.core_mask != 0) {
+        cpu_set_t masked;
+        CPU_ZERO(&masked);
+        for (s32 cpu = 0; cpu < (std::min)(total, 64); ++cpu) {
+            if (((state.core_mask >> cpu) & 1) != 0 && CPU_ISSET(cpu, &state.process)) {
+                CPU_SET(cpu, &masked);
+            }
+        }
+        if (CPU_COUNT(&masked) > 0) {
+            state.allowed = masked;
+        } else {
+            LOG_WARNING(Common, "CPU core mask {:#x} leaves no usable core, ignoring it",
+                        state.core_mask);
+        }
+    }
     auto cores = CollectCores(state.allowed, total, "cpu_capacity", true);
     if (cores.empty() || (WeightsAreUniform(cores) && MidrsAreDistinct(cores))) {
         auto by_frequency = CollectCores(state.allowed, total, "cpufreq/cpuinfo_max_freq", false);
@@ -323,7 +343,7 @@ void RefreshTopologyLocked(CpuTopologyState& state) {
     if (sched_getaffinity(getpid(), sizeof(current), &current) != 0) {
         return;
     }
-    if (std::memcmp(&current, &state.allowed, sizeof(current)) != 0) {
+    if (std::memcmp(&current, &state.process, sizeof(current)) != 0) {
         ComputeTopologyLocked(state);
     }
 }
@@ -563,6 +583,31 @@ void SetCurrentThreadToBackgroundWork() {
 #if defined(__ANDROID__)
     ADPF::AddCurrentThread(ADPF::Session::Background);
     SetCurrentThreadCoreGroup(CoreGroup::Unrestricted);
+#endif
+}
+
+void SetCpuCoreMask(u64 mask) {
+#if defined(__ANDROID__)
+    CpuTopologyState& state = State();
+    {
+        std::scoped_lock lock{state.topology_mutex};
+        state.core_mask = mask;
+        ComputeTopologyLocked(state);
+
+        // Threads spawned later inherit the mask from their creator. The main thread is left
+        // alone since the process affinity is read from it.
+        if (DIR* tasks = opendir("/proc/self/task")) {
+            while (const dirent* entry = readdir(tasks)) {
+                const pid_t tid = static_cast<pid_t>(std::atoi(entry->d_name));
+                if (tid > 0 && tid != getpid()) {
+                    sched_setaffinity(tid, sizeof(state.allowed), &state.allowed);
+                }
+            }
+            closedir(tasks);
+        }
+    }
+    LOG_INFO(Common, "CPU core mask set to {:#x}", mask);
+    RefreshThreadPolicies();
 #endif
 }
 

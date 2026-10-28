@@ -156,6 +156,11 @@ namespace AndroidSettings {
                                  Settings::Specialization::Default,
                                  true,
                                  true};
+        // Bit N allows CPU N, 0 allows all of them
+        Settings::SwitchableSetting<s32> cpu_core_mask{linkage, 0, "cpu_core_mask",
+                                                       Settings::Category::Android,
+                                                       Settings::Specialization::Default, true,
+                                                       false};
 
 
         Settings::Setting<bool> show_input_overlay{linkage, true, "show_input_overlay",

@@ -11,6 +11,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.PopupMenu
+import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.findNavController
@@ -110,6 +111,10 @@ class SettingsAdapter(
 
             SettingsItem.TYPE_GPU_UNSWIZZLE -> {
                 GpuUnswizzleViewHolder(ListItemSettingBinding.inflate(inflater), this)
+            }
+
+            SettingsItem.TYPE_CPU_CORE_MASK -> {
+                CpuCoreMaskViewHolder(ListItemSettingBinding.inflate(inflater), this)
             }
 
             SettingsItem.TYPE_FX_TOOLBAR -> {
@@ -535,6 +540,54 @@ class SettingsAdapter(
             item,
             position
         ).show(fragment.childFragmentManager, GpuUnswizzleDialogFragment.TAG)
+    }
+
+    fun onCpuCoreMaskClick(item: CpuCoreMaskSetting, position: Int) {
+        val context = fragment.requireContext()
+        val count = CpuCoreMaskSetting.coreCount
+        val mask = item.getMask()
+        val labels = Array(count) { cpu ->
+            val frequency = CpuCoreMaskSetting.maxFrequency(cpu)
+            if (frequency == null) {
+                context.getString(R.string.cpu_core, cpu)
+            } else {
+                context.getString(R.string.cpu_core_frequency, cpu, frequency)
+            }
+        }
+        val checked = BooleanArray(count) { mask == 0 || (mask shr it) and 1 != 0 }
+
+        lateinit var dialog: AlertDialog
+        dialog = MaterialAlertDialogBuilder(context)
+            .setTitle(item.title)
+            .setMultiChoiceItems(labels, checked) { _, which, isChecked ->
+                checked[which] = isChecked
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = checked.any { it }
+            }
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val newMask = if (checked.all { it }) {
+                    0
+                } else {
+                    checked.foldIndexed(0) { cpu, acc, on -> if (on) acc or (1 shl cpu) else acc }
+                }
+                item.setMask(newMask)
+                notifyItemChanged(position)
+                settingsViewModel.setShouldReloadSettingsList(true)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .setNeutralButton(R.string.cpu_cores_check_all, null)
+            .create()
+
+        dialog.setOnShowListener {
+            // Replace the default listener so the dialog stays open
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                checked.fill(true)
+                for (cpu in 0 until count) {
+                    dialog.listView.setItemChecked(cpu, true)
+                }
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = true
+            }
+        }
+        dialog.show()
     }
 
     private class DiffCallback : DiffUtil.ItemCallback<SettingsItem>() {

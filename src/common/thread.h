@@ -112,6 +112,9 @@ void SetCurrentThreadToEfficiencyCores();
 void SetCurrentThreadToBackgroundWork();
 void SetCurrentThreadToAllCores();
 
+// Restricts emulator threads to the CPUs set in the mask, 0 allows all of them.
+void SetCpuCoreMask(u64 mask);
+
 void RefreshThreadPolicies();
 void PollThreadPolicies();
 

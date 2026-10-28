@@ -514,6 +514,7 @@ class SettingsFragmentPresenter(
             add(IntSetting.MEMORY_LAYOUT.key)
             add(BooleanSetting.USE_CUSTOM_CPU_TICKS.key)
             add(IntSetting.CPU_TICKS.key)
+            add(IntSetting.CPU_CORE_MASK.key)
 
             if (!NativeConfig.isPerGameConfigLoaded()) {
                 add(HeaderSetting(R.string.network))
