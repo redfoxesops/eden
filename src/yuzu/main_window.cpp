@@ -2797,9 +2797,9 @@ void MainWindow::IncrementInstallProgress() {
 
 void MainWindow::OnMenuInstallToNAND() {
     const QString file_filter =
-        tr("Installable Switch File (*.nca *.nsp *.xci);;Nintendo Content Archive "
-           "(*.nca);;Nintendo Submission Package (*.nsp);;NX Cartridge "
-           "Image (*.xci)");
+        tr("Installable Switch File (*.nca *.nsp *.nsz *.xci *.xcz);;Nintendo Content Archive "
+           "(*.nca);;Nintendo Submission Package (*.nsp *.nsz);;NX Cartridge "
+           "Image (*.xci *.xcz)");
 
     QStringList filenames = QFileDialog::getOpenFileNames(
         this, tr("Install Files"), QString::fromStdString(UISettings::values.roms_path),
@@ -2856,7 +2856,10 @@ void MainWindow::OnMenuInstallToNAND() {
         QFuture<ContentManager::InstallResult> future;
         ContentManager::InstallResult result;
 
-        if (file.endsWith(QStringLiteral("nsp"), Qt::CaseInsensitive)) {
+        if (file.endsWith(QStringLiteral("nsp"), Qt::CaseInsensitive) ||
+            file.endsWith(QStringLiteral("nsz"), Qt::CaseInsensitive) ||
+            file.endsWith(QStringLiteral("xci"), Qt::CaseInsensitive) ||
+            file.endsWith(QStringLiteral("xcz"), Qt::CaseInsensitive)) {
             const auto progress_callback = [this](size_t size, size_t progress) {
                 emit UpdateInstallProgress();
                 if (install_progress->wasCanceled()) {
@@ -3661,12 +3664,12 @@ void MainWindow::OnToggleGraphicsAPI() {
         api = Settings::RendererBackend::OpenGL_GLSL;
         break;
     case Settings::RendererBackend::OpenGL_GLSL:
-        api = Settings::RendererBackend::OpenGL_GLSL;
-        break;
-    case Settings::RendererBackend::OpenGL_SPIRV:
         api = Settings::RendererBackend::OpenGL_GLASM;
         break;
     case Settings::RendererBackend::OpenGL_GLASM:
+        api = Settings::RendererBackend::OpenGL_SPIRV;
+        break;
+    case Settings::RendererBackend::OpenGL_SPIRV:
         api = Settings::RendererBackend::Null;
         break;
 #else
