@@ -64,9 +64,7 @@
 // Qt Stuff //
 #define QT_NO_OPENGL
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 #include <QStyleHints>
-#endif
 
 #include <QActionGroup>
 #include <QCheckBox>
@@ -78,10 +76,12 @@
 #include <QGuiApplication>
 #include <QInputDialog>
 #include <QMimeData>
+#include <QMouseEvent>
 #include <QPalette>
 #include <QProgressDialog>
 #include <QScreen>
 #include <QShortcut>
+#include <QSignalBlocker>
 #include <QStatusBar>
 #include <QtConcurrentRun>
 
@@ -134,6 +134,7 @@ static FileSys::VirtualFile VfsDirectoryCreateFileWrapper(const FileSys::Virtual
 #endif
 
 // Core //
+#include "core/core.h"
 #include "core/frontend/applets/general.h"
 #include "core/frontend/applets/mii_edit.h"
 #include "core/frontend/applets/software_keyboard.h"
@@ -147,6 +148,7 @@ static FileSys::VirtualFile VfsDirectoryCreateFileWrapper(const FileSys::Virtual
 #include "core/file_sys/common_funcs.h"
 #include "core/file_sys/romfs.h"
 #include "core/file_sys/savedata_factory.h"
+#include "core/memory/dmnt_cheat_types.h"
 
 #include "core/tools/renderdoc.h"
 
@@ -180,7 +182,6 @@ static FileSys::VirtualFile VfsDirectoryCreateFileWrapper(const FileSys::Virtual
 #include <csignal>
 #include <QSocketNotifier>
 #include <sys/socket.h>
-#include "qt_common/gui_settings.h"
 
 #endif
 
@@ -342,17 +343,9 @@ QString GetTranslatedGameIconSize(size_t index) {
 } // namespace
 
 #ifndef _WIN32
-// TODO(crueter): carboxyl does this, is it needed in qml?
 inline static bool isDarkMode() {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     const auto scheme = QGuiApplication::styleHints()->colorScheme();
     return scheme == Qt::ColorScheme::Dark;
-#else
-    const QPalette defaultPalette;
-    const auto text = defaultPalette.color(QPalette::WindowText);
-    const auto window = defaultPalette.color(QPalette::Window);
-    return text.lightness() > window.lightness();
-#endif // QT_VERSION
 }
 #endif // _WIN32
 
@@ -447,10 +440,6 @@ MainWindow::MainWindow(bool has_broken_vulkan)
 
     // Gen keys if necessary
     OnCheckFirmwareDecryption();
-
-#ifdef __unix__
-    OnCheckGraphicsBackend();
-#endif
 
     // Check for orphaned profiles and reset profile data if necessary
     QtCommon::Content::FixProfiles();
@@ -1434,6 +1423,9 @@ void MainWindow::OnAppFocusStateChanged(Qt::ApplicationState state) {
 }
 
 void MainWindow::ConnectWidgetEvents() {
+    ui->menu_Cheats->installEventFilter(this);
+    ui->menu_Cheats->menuAction()->setVisible(false);
+
     connect(game_list, &GameList::BootGame, this, &MainWindow::BootGameFromList);
     connect(game_list, &GameList::GameChosen, this, &MainWindow::OnGameListLoadFile);
     connect(game_list, &GameList::OpenDirectory, this, &MainWindow::OnGameListOpenDirectory);
@@ -1468,11 +1460,75 @@ void MainWindow::ConnectWidgetEvents() {
     // Software Keyboard Applet
     connect(this, &MainWindow::EmulationStarting, this, &MainWindow::SoftwareKeyboardExit);
     connect(this, &MainWindow::EmulationStopping, this, &MainWindow::SoftwareKeyboardExit);
+    connect(this, &MainWindow::EmulationStarting, this, &MainWindow::RefreshRuntimeCheats);
+    connect(this, &MainWindow::EmulationStopping, this, &MainWindow::ClearRuntimeCheats);
 
     connect(&status_bar_update_timer, &QTimer::timeout, this, &MainWindow::UpdateStatusBar);
 
     connect(this, &MainWindow::UpdateThemedIcons, multiplayer_state,
             &MultiplayerState::UpdateThemedIcons);
+}
+
+void MainWindow::RefreshRuntimeCheats() {
+    ClearRuntimeCheats();
+
+    const auto cheats = QtCommon::system->GetRuntimeCheats();
+    auto* disable_all = ui->menu_Cheats->addAction(tr("Disable All Cheats"));
+    connect(disable_all, &QAction::triggered, this, [this] {
+        for (auto* action : runtime_cheat_actions) {
+            if (action->isEnabled()) {
+                action->setChecked(false);
+            }
+        }
+    });
+
+    auto* enable_all = ui->menu_Cheats->addAction(tr("Enable All Cheats"));
+    connect(enable_all, &QAction::triggered, this, [this] {
+        for (auto* action : runtime_cheat_actions) {
+            if (action->isEnabled()) {
+                action->setChecked(true);
+            }
+        }
+    });
+
+    ui->menu_Cheats->addSeparator();
+    runtime_cheat_actions.reserve(cheats.size());
+    for (const auto& cheat : cheats) {
+        const QString name = cheat.name.empty() ? tr("Unnamed Cheat")
+                                                : QString::fromUtf8(cheat.name);
+        auto* action = ui->menu_Cheats->addAction(name);
+        action->setCheckable(true);
+        action->setChecked(cheat.enabled || cheat.is_master);
+        action->setEnabled(!cheat.is_master);
+        connect(action, &QAction::toggled, this, [action, id = cheat.id](bool enabled) {
+            if (!QtCommon::system->SetCheatEnabled(id, enabled)) {
+                const QSignalBlocker blocker{action};
+                action->setChecked(!enabled);
+            }
+        });
+        runtime_cheat_actions.push_back(action);
+    }
+
+    ui->menu_Cheats->menuAction()->setVisible(!runtime_cheat_actions.empty());
+}
+
+void MainWindow::ClearRuntimeCheats() {
+    ui->menu_Cheats->clear();
+    runtime_cheat_actions.clear();
+    ui->menu_Cheats->menuAction()->setVisible(false);
+}
+
+bool MainWindow::eventFilter(QObject* watched, QEvent* event) {
+    if (watched == ui->menu_Cheats && event->type() == QEvent::MouseButtonRelease) {
+        const auto* mouse_event = static_cast<QMouseEvent*>(event);
+        auto* action = ui->menu_Cheats->actionAt(mouse_event->pos());
+        if (mouse_event->button() == Qt::LeftButton && action && action->isEnabled() &&
+            action->isCheckable()) {
+            action->trigger();
+            return true;
+        }
+    }
+    return QMainWindow::eventFilter(watched, event);
 }
 
 void MainWindow::ConnectMenuEvents() {
@@ -3400,9 +3456,6 @@ void MainWindow::OnConfigure() {
     const bool old_discord_presence = UISettings::values.enable_discord_presence.GetValue();
     const auto old_language_index = Settings::values.language_index.GetValue();
     const bool old_gamemode = UISettings::values.enable_gamemode.GetValue();
-#ifdef __unix__
-    const bool old_force_x11 = UISettings::values.gui_force_x11.GetValue();
-#endif
 
     Settings::SetConfiguringGlobal(true);
     ConfigureDialog configure_dialog(this, hotkey_registry, input_subsystem.get(),
@@ -3467,11 +3520,6 @@ void MainWindow::OnConfigure() {
     if (UISettings::values.enable_gamemode.GetValue() != old_gamemode) {
         SetGamemodeEnabled(UISettings::values.enable_gamemode.GetValue());
     }
-#ifdef __unix__
-    if (UISettings::values.gui_force_x11.GetValue() != old_force_x11) {
-        GraphicsBackend::SetForceX11(UISettings::values.gui_force_x11.GetValue());
-    }
-#endif
 
     if (!multiplayer_state->IsHostingPublicRoom()) {
         multiplayer_state->UpdateCredentials();
@@ -4354,56 +4402,6 @@ void MainWindow::OnCheckFirmwareDecryption() {
     SetFirmwareVersion();
     UpdateMenuState();
 }
-
-#ifdef __unix__
-void MainWindow::OnCheckGraphicsBackend() {
-    const QString platformName = QGuiApplication::platformName();
-    const QByteArray qtPlatform = qgetenv("QT_QPA_PLATFORM");
-
-    if (platformName == QStringLiteral("xcb") || qtPlatform == "xcb")
-        return;
-
-    const bool isWayland =
-        platformName.startsWith(QStringLiteral("wayland"), Qt::CaseInsensitive) ||
-        qtPlatform.startsWith("wayland");
-    if (!isWayland)
-        return;
-
-    const bool currently_hidden = UISettings::values.gui_hide_backend_warning.GetValue();
-    if (currently_hidden)
-        return;
-
-    QMessageBox msgbox(this);
-    msgbox.setWindowTitle(tr("Wayland Detected!"));
-    msgbox.setText(
-        tr("Wayland is known to have significant performance issues and mysterious bugs.\n"
-           "It's recommended to use X11 instead.\n\n"
-           "Would you like to force it for future launches?"));
-    msgbox.setIcon(QMessageBox::Warning);
-
-    QPushButton* okButton = msgbox.addButton(tr("Use X11"), QMessageBox::AcceptRole);
-    msgbox.addButton(tr("Continue with Wayland"), QMessageBox::RejectRole);
-    msgbox.setDefaultButton(okButton);
-
-    QCheckBox* cb = new QCheckBox(tr("Don't show again"), &msgbox);
-    cb->setChecked(currently_hidden);
-    msgbox.setCheckBox(cb);
-
-    msgbox.exec();
-
-    const bool hide = cb->isChecked();
-    if (hide != currently_hidden) {
-        UISettings::values.gui_hide_backend_warning.SetValue(hide);
-    }
-
-    if (msgbox.clickedButton() == okButton) {
-        UISettings::values.gui_force_x11.SetValue(true);
-        GraphicsBackend::SetForceX11(true);
-        QMessageBox::information(this, tr("Restart Required"),
-                                 tr("Restart Eden to apply the X11 backend."));
-    }
-}
-#endif
 
 bool MainWindow::CheckFirmwarePresence() {
     return FirmwareManager::CheckFirmwarePresence(*QtCommon::system.get());

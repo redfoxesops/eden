@@ -7,9 +7,12 @@
 #pragma once
 
 #include <limits>
+#include <unordered_map>
+#include <utility>
 
 #include <boost/container/small_vector.hpp>
 
+#include "common/hash.h"
 #include "video_core/buffer_cache/buffer_cache_base.h"
 #include "video_core/buffer_cache/memory_tracker_base.h"
 #include "video_core/buffer_cache/usage_tracker.h"
@@ -74,17 +77,11 @@ public:
     }
 
 private:
-    struct BufferView {
-        u32 offset;
-        u32 size;
-        VideoCore::Surface::PixelFormat format;
-        vk::BufferView handle;
-    };
-
     const Device* device{};
     Scheduler* scheduler{};
     vk::Buffer buffer;
-    std::vector<BufferView> views;
+    // Keyed by (offset << 32 | size, format)
+    std::unordered_map<std::pair<u64, u32>, vk::BufferView, Common::PairHash> views;
     VideoCommon::UsageTracker tracker;
     VkDeviceAddress device_address{};
     u64 last_usage_tick{};
@@ -219,9 +216,13 @@ public:
 
     void BindTextureBuffer(Buffer& buffer, u32 offset, u32 size,
                            VideoCore::Surface::PixelFormat format) {
-        guest_descriptor_queue.AddTexelBuffer(buffer.View(offset, size, format),
-                                              buffer.DeviceAddress(), offset, size,
-                                              TexelBufferFormat(format));
+        if (guest_descriptor_queue.UsesDescriptorBuffer()) {
+            const VkDeviceAddress address = buffer.DeviceAddress();
+            const VkFormat vk_format = address == 0 ? VK_FORMAT_UNDEFINED : TexelBufferFormat(format);
+            guest_descriptor_queue.AddTexelBuffer(VK_NULL_HANDLE, address, offset, size, vk_format);
+        } else {
+            guest_descriptor_queue.AddTexelBuffer(buffer.View(offset, size, format));
+        }
     }
 
     bool ShouldLimitDynamicStorageBuffers() const {
