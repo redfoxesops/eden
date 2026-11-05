@@ -133,27 +133,21 @@ VkBufferView Buffer::View(u32 offset, u32 size, VideoCore::Surface::PixelFormat 
         offset = 0;
         size = 0;
     }
-    const auto it{std::ranges::find_if(views, [offset, size, format](const BufferView& view) {
-        return offset == view.offset && size == view.size && format == view.format;
-    })};
-    if (it != views.end()) {
-        return *it->handle;
+    const std::pair<u64, u32> key{u64{offset} << 32 | size, static_cast<u32>(format)};
+    if (const auto it = views.find(key); it != views.end()) {
+        return *it->second;
     }
-    views.push_back({
-        .offset = offset,
-        .size = size,
-        .format = format,
-        .handle = device->GetLogical().CreateBufferView({
-            .sType = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO,
-            .pNext = nullptr,
-            .flags = 0,
-            .buffer = *buffer,
-            .format = MaxwellToVK::SurfaceFormat(*device, FormatType::Buffer, false, format).format,
-            .offset = offset,
-            .range = size,
-        }),
-    });
-    return *views.back().handle;
+    const auto [it, _] = views.emplace(
+        key, device->GetLogical().CreateBufferView({
+                 .sType = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO,
+                 .pNext = nullptr,
+                 .flags = 0,
+                 .buffer = *buffer,
+                 .format = MaxwellToVK::SurfaceFormat(*device, FormatType::Buffer, false, format).format,
+                 .offset = offset,
+                 .range = size,
+             }));
+    return *it->second;
 }
 
 class QuadIndexBuffer {

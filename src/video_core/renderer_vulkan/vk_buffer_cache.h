@@ -7,9 +7,12 @@
 #pragma once
 
 #include <limits>
+#include <unordered_map>
+#include <utility>
 
 #include <boost/container/small_vector.hpp>
 
+#include "common/hash.h"
 #include "video_core/buffer_cache/buffer_cache_base.h"
 #include "video_core/buffer_cache/memory_tracker_base.h"
 #include "video_core/buffer_cache/usage_tracker.h"
@@ -74,17 +77,11 @@ public:
     }
 
 private:
-    struct BufferView {
-        u32 offset;
-        u32 size;
-        VideoCore::Surface::PixelFormat format;
-        vk::BufferView handle;
-    };
-
     const Device* device{};
     Scheduler* scheduler{};
     vk::Buffer buffer;
-    std::vector<BufferView> views;
+    // Keyed by (offset << 32 | size, format)
+    std::unordered_map<std::pair<u64, u32>, vk::BufferView, Common::PairHash> views;
     VideoCommon::UsageTracker tracker;
     VkDeviceAddress device_address{};
     u64 last_usage_tick{};
