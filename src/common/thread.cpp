@@ -383,13 +383,29 @@ bool KernelPreservesRequestedAffinity() {
     return major > 6 || (major == 6 && minor >= 2);
 }
 
+// Threads spawned later inherit the mask from their creator. The main thread is left alone
+// since the process affinity is read from it.
+void ApplyAllowedToAllThreadsLocked(const CpuTopologyState& state) {
+    if (DIR* tasks = opendir("/proc/self/task")) {
+        while (const dirent* entry = readdir(tasks)) {
+            const pid_t tid = static_cast<pid_t>(std::atoi(entry->d_name));
+            if (tid > 0 && tid != getpid()) {
+                sched_setaffinity(tid, sizeof(state.allowed), &state.allowed);
+            }
+        }
+        closedir(tasks);
+    }
+}
+
 void SnapshotCanaryLocked(CpuTopologyState& state) {
     state.canary_valid = false;
-    if (!state.separated) {
+    // Without core groups or a core mask every thread may run anywhere, so a reset is invisible.
+    const bool masked = state.core_mask != 0;
+    if (!state.separated && !masked) {
         return;
     }
     for (const auto& policy : state.policies) {
-        if (policy.group == CoreGroup::Unrestricted) {
+        if (policy.group == CoreGroup::Unrestricted && !masked) {
             continue;
         }
         cpu_set_t mask;
@@ -594,16 +610,9 @@ void SetCpuCoreMask(u64 mask) {
         state.core_mask = mask;
         ComputeTopologyLocked(state);
 
-        // Threads spawned later inherit the mask from their creator. The main thread is left
-        // alone since the process affinity is read from it.
-        if (DIR* tasks = opendir("/proc/self/task")) {
-            while (const dirent* entry = readdir(tasks)) {
-                const pid_t tid = static_cast<pid_t>(std::atoi(entry->d_name));
-                if (tid > 0 && tid != getpid()) {
-                    sched_setaffinity(tid, sizeof(state.allowed), &state.allowed);
-                }
-            }
-            closedir(tasks);
+        // RefreshThreadPolicies covers a set mask, only clearing it needs a sweep here.
+        if (mask == 0) {
+            ApplyAllowedToAllThreadsLocked(state);
         }
     }
     LOG_INFO(Common, "CPU core mask set to {:#x}", mask);
@@ -623,6 +632,10 @@ void RefreshThreadPolicies() {
     CpuTopologyState& state = State();
     std::scoped_lock topology_lock{state.topology_mutex};
     RefreshTopologyLocked(state);
+    // Kernels before 6.2 drop the requested affinity of every thread on a cpuset change.
+    if (state.core_mask != 0) {
+        ApplyAllowedToAllThreadsLocked(state);
+    }
 
     std::scoped_lock policy_lock{state.policy_mutex};
     std::erase_if(state.policies, [&state](const ThreadPolicy& policy) {
