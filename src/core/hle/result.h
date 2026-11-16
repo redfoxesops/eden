@@ -258,7 +258,7 @@ union Result {
         return GetInnerValue() == result.GetInnerValue();
     }
 };
-static_assert(std::is_trivial_v<Result>);
+static_assert(std::is_trivially_default_constructible_v<Result> && std::is_trivially_copyable_v<Result>);
 
 [[nodiscard]] constexpr bool operator==(const Result& a, const Result& b) {
     return a.raw == b.raw;
@@ -329,10 +329,7 @@ private:
 
 namespace ResultImpl {
 template <auto EvaluateResult, class F>
-class ScopedResultGuard {
-    YUZU_NON_COPYABLE(ScopedResultGuard);
-    YUZU_NON_MOVEABLE(ScopedResultGuard);
-
+class ScopedResultGuard : Common::NonCopyable, Common::NonMoveable {
 private:
     Result& m_ref;
     F m_f;

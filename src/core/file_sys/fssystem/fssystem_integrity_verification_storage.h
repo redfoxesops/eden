@@ -6,27 +6,22 @@
 
 #pragma once
 
-#include <optional>
 #include <array>
 #include <cstddef>
 #include <type_traits>
 
 #include "core/file_sys/fssystem/fs_i_storage.h"
-#include "core/file_sys/fssystem/fs_types.h"
 
 namespace FileSys {
 
 class IntegrityVerificationStorage : public IReadOnlyStorage {
-    YUZU_NON_COPYABLE(IntegrityVerificationStorage);
-    YUZU_NON_MOVEABLE(IntegrityVerificationStorage);
-
 public:
     static constexpr s64 HashSize = 256 / 8;
 
     struct BlockHash {
         std::array<u8, HashSize> hash;
     };
-    static_assert(std::is_trivial_v<BlockHash>);
+    static_assert(std::is_trivially_default_constructible_v<BlockHash> && std::is_trivially_copyable_v<BlockHash>);
 
 public:
     IntegrityVerificationStorage()

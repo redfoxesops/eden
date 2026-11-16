@@ -125,7 +125,8 @@ void BufferCache<P>::WriteMemory(DAddr device_addr, u64 size) {
         ClearDownload(device_addr, size);
         gpu_modified_ranges.Subtract(device_addr, size);
     }
-    memory_tracker.MarkRegionAsCpuModified(device_addr, size);
+    const DAddr page_start = Common::AlignDown(device_addr, DEVICE_PAGESIZE);
+    memory_tracker.MarkRegionAsCpuModified(device_addr, size,IsRegionGpuModified(page_start, Common::AlignUp(device_addr + size, DEVICE_PAGESIZE) - page_start));
 }
 
 template <class P>
@@ -153,7 +154,7 @@ bool BufferCache<P>::OnCPUWrite(DAddr device_addr, u64 size) {
     if (!is_dirty) {
         return false;
     }
-    if (memory_tracker.IsRegionGpuModified(device_addr, size)) {
+    if (IsRegionGpuModified(device_addr, size)) {
         return true;
     }
     WriteMemory(device_addr, size);
@@ -948,9 +949,14 @@ void BufferCache<P>::BindHostGraphicsUniformBuffer(size_t stage, u32 index, u32 
             return alignment > 1 && (offset % alignment) != 0;
         }
     }();
+    // Uniform data rewritten by the CPU between draws would need a transfer copy into the cached
+    // buffer, which ends the current render pass. Read it from the stream buffer instead.
+    static constexpr u32 MAX_STREAMED_UNIFORM_BYTES = static_cast<u32>(16_KiB);
     const bool use_fast_buffer = needs_alignment_stream
-        || (has_host_buffer && size <= channel_state->uniform_buffer_skip_cache_size
-            && !memory_tracker.IsRegionGpuModified(device_addr, size));
+        || (has_host_buffer && !memory_tracker.IsRegionGpuModified(device_addr, size)
+            && (size <= channel_state->uniform_buffer_skip_cache_size
+                || (size <= MAX_STREAMED_UNIFORM_BYTES
+                    && memory_tracker.IsRegionCpuModified(device_addr, size))));
     if (use_fast_buffer) {
         if constexpr (IS_OPENGL) {
             if (runtime.HasFastBufferSubData()) {
@@ -1781,13 +1787,23 @@ bool BufferCache<P>::SynchronizeBuffer(Buffer& buffer, DAddr device_addr, u32 si
         u64 largest_copy = 0;
         DAddr buffer_start = buffer.CpuAddr();
         memory_tracker.ForEachUploadRange(device_addr, size, [&](u64 device_addr_out, u64 range_size) {
-            copies.push_back(BufferCopy{
-                .src_offset = total_size_bytes,
-                .dst_offset = device_addr_out - buffer_start,
-                .size = range_size,
+            const auto add_upload = [&](DAddr start, DAddr end) {
+                if (start == end) return;
+                const u64 upload_size = end - start;
+                copies.push_back(BufferCopy{
+                    .src_offset = total_size_bytes,
+                    .dst_offset = start - buffer_start,
+                    .size = upload_size,
+                });
+                total_size_bytes += upload_size;
+                largest_copy = (std::max)(largest_copy, upload_size);
+            };
+            DAddr upload_start = device_addr_out;
+            gpu_modified_ranges.ForEachInRange(device_addr_out, range_size, [&](DAddr gpu_start, DAddr gpu_end) {
+                add_upload(upload_start, gpu_start);
+                upload_start = gpu_end;
             });
-            total_size_bytes += range_size;
-            largest_copy = (std::max)(largest_copy, range_size);
+            add_upload(upload_start, device_addr_out + range_size);
         });
         if (total_size_bytes == 0) {
             return true;

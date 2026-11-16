@@ -33,7 +33,7 @@
 #include "core/hle/service/set/settings_server.h"
 #include "core/loader/loader.h"
 #include "core/loader/nso.h"
-#include "core/memory/cheat_engine.h"
+#include "core/memory/cheat_parser.h"
 
 namespace FileSys {
 namespace {
@@ -60,9 +60,9 @@ std::string FormatTitleVersion(u32 version,
     }
 
     if (format == TitleVersionFormat::FourElements) {
-        return fmt::format("v{}.{}.{}.{}", bytes[3], bytes[2], bytes[1], bytes[0]);
+        return std::format("v{}.{}.{}.{}", bytes[3], bytes[2], bytes[1], bytes[0]);
     }
-    return fmt::format("v{}.{}.{}", bytes[3], bytes[2], bytes[1]);
+    return std::format("v{}.{}.{}", bytes[3], bytes[2], bytes[1]);
 }
 
 // Returns a directory with name matching name case-insensitive. Returns nullptr if directory
@@ -83,11 +83,11 @@ VirtualDir FindSubdirectoryCaseless(const VirtualDir dir, std::string_view name)
 #endif
 }
 
-std::optional<std::vector<Core::Memory::CheatEntry>> ReadCheatFileFromFolder(
+std::optional<Core::Memory::CheatList> ReadCheatFileFromFolder(
     u64 title_id, const PatchManager::BuildID& build_id_, const VirtualDir& base_path, bool upper) {
     const auto build_id_raw = Common::HexToString(build_id_, upper);
     const auto build_id = build_id_raw.substr(0, sizeof(u64) * 2);
-    const auto file = base_path->GetFile(fmt::format("{}.txt", build_id));
+    const auto file = base_path->GetFile(std::format("{}.txt", build_id));
 
     if (file == nullptr) {
         LOG_INFO(Common_Filesystem, "No cheats file found for title_id={:016X}, build_id={}",
@@ -102,7 +102,7 @@ std::optional<std::vector<Core::Memory::CheatEntry>> ReadCheatFileFromFolder(
         return std::nullopt;
     }
 
-    const Core::Memory::TextCheatParser parser;
+    const Core::Memory::TextCheatParser parser{Settings::values.enable_cheats_by_default.GetValue()};
     return parser.Parse(std::string_view(reinterpret_cast<const char*>(data.data()), data.size()));
 }
 
@@ -120,7 +120,7 @@ bool IsDirValidAndNonEmpty(const VirtualDir& dir) {
 }
 
 bool IsVersionedExternalUpdateDisabled(const std::vector<std::string>& disabled, u32 version) {
-    const std::string disabled_key = fmt::format("Update@{}", version);
+    const std::string disabled_key = std::format("Update@{}", version);
     return std::find(disabled.cbegin(), disabled.cend(), disabled_key) != disabled.cend() ||
            std::find(disabled.cbegin(), disabled.cend(), "Update") != disabled.cend();
 }
@@ -373,7 +373,7 @@ VirtualDir PatchManager::PatchExeFS(VirtualDir exefs) const {
 
 std::vector<VirtualFile> PatchManager::CollectPatches(const std::vector<VirtualDir>& patch_dirs, const std::string& build_id) const {
     const auto disabled = GetDisabledAddons();
-    const auto nso_build_id = fmt::format("{:0<64}", build_id);
+    const auto nso_build_id = std::format("{:0<64}", build_id);
 
     std::vector<VirtualFile> out;
     out.reserve(patch_dirs.size());
@@ -386,7 +386,7 @@ std::vector<VirtualFile> PatchManager::CollectPatches(const std::vector<VirtualD
             for (const auto& file : exefs_dir->GetFiles()) {
                 if (file->GetExtension() == "ips") {
                     auto name = file->GetName();
-                    const auto this_build_id = fmt::format("{:0<64}", name.substr(0, name.find('.')));
+                    const auto this_build_id = std::format("{:0<64}", name.substr(0, name.find('.')));
                     if (nso_build_id == this_build_id)
                         out.push_back(file);
                 } else if (file->GetExtension() == "pchtxt") {
@@ -422,7 +422,7 @@ std::vector<u8> PatchManager::PatchNSO(const std::vector<u8>& nso, const std::st
         const auto dump_dir = fs_controller.GetModificationDumpRoot(title_id);
         if (dump_dir != nullptr) {
             const auto nso_dir = GetOrCreateDirectoryRelative(dump_dir, "/nso");
-            const auto file = nso_dir->CreateFile(fmt::format("{}-{}.nso", name, build_id));
+            const auto file = nso_dir->CreateFile(std::format("{}-{}.nso", name, build_id));
 
             file->Resize(nso.size());
             file->WriteBytes(nso);
@@ -487,7 +487,7 @@ bool PatchManager::HasNSOPatch(const BuildID& build_id_, std::string_view name) 
     return !CollectPatches(patch_dirs, build_id).empty();
 }
 
-std::vector<Core::Memory::CheatEntry> PatchManager::CreateCheatList(const BuildID& build_id_) const {
+Core::Memory::CheatList PatchManager::CreateCheatList(const BuildID& build_id_) const {
     const auto load_dir = GetModificationLoadRoot();
     if (load_dir == nullptr) {
         LOG_ERROR(Loader, "Cannot load mods for invalid title_id={:016X}", title_id);
@@ -499,14 +499,14 @@ std::vector<Core::Memory::CheatEntry> PatchManager::CreateCheatList(const BuildI
     std::sort(patch_dirs.begin(), patch_dirs.end(), [](auto const& l, auto const& r) { return l->GetName() < r->GetName(); });
 
     // <mod dir> / <folder> / cheats / <build id>.txt
-    std::vector<Core::Memory::CheatEntry> out;
+    Core::Memory::CheatList out;
     for (const auto& subdir : patch_dirs) {
         if (std::find(disabled.cbegin(), disabled.cend(), subdir->GetName()) == disabled.cend()) {
             if (auto cheats_dir = FindSubdirectoryCaseless(subdir, "cheats"); cheats_dir != nullptr) {
-                if (auto const res = ReadCheatFileFromFolder(title_id, build_id_, cheats_dir, true)) {
-                    std::copy(res->begin(), res->end(), std::back_inserter(out));
-                } else if (auto const lower_res = ReadCheatFileFromFolder(title_id, build_id_, cheats_dir, false)) {
-                    std::copy(lower_res->begin(), lower_res->end(), std::back_inserter(out));
+                if (auto res = ReadCheatFileFromFolder(title_id, build_id_, cheats_dir, true)) {
+                    out.Append(std::move(*res));
+                } else if (auto lower_res = ReadCheatFileFromFolder(title_id, build_id_, cheats_dir, false)) {
+                    out.Append(std::move(*lower_res));
                 }
             }
         }
@@ -518,9 +518,8 @@ std::vector<Core::Memory::CheatEntry> PatchManager::CreateCheatList(const BuildI
         if (name.starts_with("cheat_") && std::find(disabled.cbegin(), disabled.cend(), name) == disabled.cend()) {
             std::vector<u8> data(f->GetSize());
             if (f->Read(data.data(), data.size()) == data.size()) {
-                const Core::Memory::TextCheatParser parser;
-                auto const res = parser.Parse(std::string_view(reinterpret_cast<const char*>(data.data()), data.size()));
-                std::copy(res.begin(), res.end(), std::back_inserter(out));
+                const Core::Memory::TextCheatParser parser { Settings::values.enable_cheats_by_default.GetValue() };
+                out.Append(parser.Parse(std::string_view(reinterpret_cast<const char*>(data.data()), data.size())));
             } else {
                 LOG_INFO(Common_Filesystem, "Failed to read cheats file for title_id={:016X}", title_id);
             }
@@ -605,7 +604,7 @@ void PatchManager::ApplyLayeredFS(VirtualFile& romfs, ContentRecordType type) co
 VirtualFile PatchManager::PatchRomFS(const NCA* base_nca, VirtualFile base_romfs,
                                      ContentRecordType type, VirtualFile packed_update_raw,
                                      bool apply_layeredfs) const {
-    const auto log_string = fmt::format("Patching RomFS for title_id={:016X}, type={:02X}",
+    const auto log_string = std::format("Patching RomFS for title_id={:016X}, type={:02X}",
                                         title_id, static_cast<u8>(type));
     if (type == ContentRecordType::Program || type == ContentRecordType::Data) {
         LOG_INFO(Loader, "{}", log_string);
@@ -1068,9 +1067,9 @@ std::vector<Patch> PatchManager::GetPatches(VirtualFile update_raw) const {
 
         std::string list;
         for (size_t i = 0; i < dlc_match.size() - 1; ++i)
-            list += fmt::format("{}, ", dlc_match[i].title_id & 0x7FF);
+            list += std::format("{}, ", dlc_match[i].title_id & 0x7FF);
 
-        list += fmt::format("{}", dlc_match.back().title_id & 0x7FF);
+        list += std::format("{}", dlc_match.back().title_id & 0x7FF);
 
         const auto dlc_disabled =
             std::find(disabled.begin(), disabled.end(), "DLC") != disabled.end();

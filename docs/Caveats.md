@@ -1,17 +1,19 @@
 # Caveats
 
 <!-- TOC -->
-- [Arch Linux](#arch-linux)
-- [Gentoo Linux](#gentoo-linux)
-- [macOS](#macos)
-- [OpenIndiana](#openindiana)
-- [OmniOS](#omnios)
-- [HaikuOS](#haikuos)
-- [OpenBSD](#openbsd)
-- [FreeBSD](#freebsd)
-- [NetBSD](#netbsd)
-- [MSYS2](#msys2)
-- [RedoxOS](#redoxos)
+- [Caveats](#caveats)
+  - [Arch Linux](#arch-linux)
+  - [Gentoo Linux](#gentoo-linux)
+  - [macOS](#macos)
+  - [OpenIndiana](#openindiana)
+  - [OmniOS](#omnios)
+  - [HaikuOS](#haikuos)
+  - [OpenBSD](#openbsd)
+  - [FreeBSD](#freebsd)
+  - [NetBSD](#netbsd)
+  - [DragonFlyBSD](#dragonflybsd)
+  - [MSYS2](#msys2)
+  - [RedoxOS](#redoxos)
 <!-- /TOC -->
 
 ## Arch Linux
@@ -32,7 +34,7 @@ macOS is largely untested. Expect crashes, significant Vulkan issues, and other 
 
 Always consult [the OpenIndiana package list](https://pkg.openindiana.org/hipster/en/index.shtml) to cross-verify availability.
 
-Run the usual update + install of essential toolings: `sudo pkg update && sudo pkg install git cmake`.
+Run the usual update + install of essential tools: `sudo pkg update && sudo pkg install git cmake`.
 
 - **gcc**: Install either `developer/gcc-14`.
 - **clang**: Version 20 is broken, install `developer/clang-19`.
@@ -96,9 +98,9 @@ It's recommended to do a `pkgman full-sync` before installing. See [HaikuOS: Ins
 
 GPU support is generally lacking/buggy, hence it's recommended to only install `pkgman install mesa_lavapipe`. Performance is acceptable for most homebrew applications and even some retail games.
 
-For reasons unberknownst to any human being, `glslangValidator` will crash upon trying to be executed, the solution to this is to build `glslang` yourself. Apply the patch in `.patch/glslang/0001-haikuos-fix.patch`. The main issue is `ShFinalize()` is deallocating already destroyed memory; the "fix" in question is allowing the program to just leak memory and the OS will take care of the rest. See [this issue](https://web.archive.org/web/20251021183604/https://github.com/haikuports/haikuports/issues/13083).
+For reasons unbeknownst to any human being, `glslangValidator` will crash upon trying to be executed, the solution to this is to build `glslang` yourself. Apply the patch in `.patch/glslang/0001-haikuos-fix.patch`. The main issue is `ShFinalize()` is deallocating already destroyed memory; the "fix" in question is allowing the program to just leak memory and the OS will take care of the rest. See [this issue](https://web.archive.org/web/20251021183604/https://github.com/haikuports/haikuports/issues/13083).
 
-For this reason this patch is NOT applied to default on all platforms (for obvious reasons) - instead this is a HaikuOS specific patch, apply with `git apply <absolute path to patch>` after cloning SPIRV-Tools then `make -C build` and add the resulting binary (in `build/StandAlone/glslang`) into PATH.
+For this reason this patch is NOT applied by default on all platforms (for obvious reasons) - instead this is a HaikuOS specific patch, apply with `git apply <absolute path to patch>` after cloning SPIRV-Tools then `make -C build` and add the resulting binary (in `build/StandAlone/glslang`) into PATH.
 
 `cubeb_devel` will also not work, either disable cubeb or uninstall it.
 
@@ -163,7 +165,7 @@ cmake --install build
 
 However, pkgsrc is highly recommended, see [getting pkgsrc](https://iso.us.netbsd.org/pub/pkgsrc/current/pkgsrc/doc/pkgsrc.html#getting). You must get `current` not the `2025Q2` version.
 
-`QtCore` on NetBSD is included, but due to misconfigurations(!) we MUST include one of the standard headers that include `bits/c++config.h`, since source_location (required by `QtCore`) isn't properly configured to intake `bits/c++config.h` (none of the experimental library is). This is a bug with NetBSD packaging and not our fault, but alas.
+`QtCore` on NetBSD is included, but due to misconfigurations(!) we MUST include one of the standard headers that include `bits/c++config.h`, since source_location (required by `QtCore`) isn't properly configured to include `bits/c++config.h` (none of the experimental library is). This is a bug with NetBSD packaging and not our fault, but alas.
 
 ## DragonFlyBSD
 
@@ -186,12 +188,12 @@ If build hangs, use `hammer2 bulkfree`.
 
 ## MSYS2
 
-Only the `MINGW64` environment is tested (or `CLANGARM64` on ARM); however, all of the others should work (in theory) sans `MINGW32`.
+Only the `UCRT64` and `CLANGARM64` environments are tested. You are recommended to use `-DYUZU_USE_BUNDLED_QT=ON` and `-DYUZU_STATIC_BUILD=ON`.
 
 When packaging an MSYS2 build that is NOT fully static, you will need to copy all dependent DLLs recursively alongside the `windeployqt6`; for example:
 
 ```sh
-# MSYS_TOOLCHAIN is typically just mingw64
+# MSYS_TOOLCHAIN is typically just ucrt64
 # since Windows is case-insensitive, you can set this to $MSYSTEM
 # or, if cross-compiling from Linux, set it to usr/x86_64-w64-mingw32
 export PATH="/${MSYS_TOOLCHAIN}/bin:$PATH"

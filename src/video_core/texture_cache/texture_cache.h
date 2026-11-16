@@ -596,6 +596,36 @@ void TextureCache<P>::WriteMemory(DAddr cpu_addr, size_t size) {
 }
 
 template <class P>
+template <typename BufferHandle>
+void TextureCache<P>::UpdateImagesFromBuffer(DAddr cpu_addr, size_t size, BufferHandle buffer,
+                                             u64 buffer_offset) {
+    if constexpr (requires(Image& image) { image.UploadSwizzledFromBuffer(buffer, buffer_offset); }) {
+        // The guest can write a render target through a storage buffer bound over its memory
+        // (e.g. a compute clear). Only images the binding matches exactly are replaced, a larger
+        // binding may hold unrelated live images in the parts the shader does not write.
+        static constexpr size_t MAX_BINDING_PADDING = 64 * 1024;
+        ForEachImageInRegion(cpu_addr, size, [&](ImageId image_id, Image& image) {
+            if (image.cpu_addr != cpu_addr || size < image.guest_size_bytes ||
+                size - image.guest_size_bytes > MAX_BINDING_PADDING ||
+                True(image.flags & ImageFlagBits::Remapped) ||
+                True(image.flags & ImageFlagBits::Sparse)) {
+                return;
+            }
+            if (!image.UploadSwizzledFromBuffer(buffer, buffer_offset)) {
+                return;
+            }
+            if (True(image.flags & ImageFlagBits::CpuModified)) {
+                image.flags &= ~ImageFlagBits::CpuModified;
+                if (False(image.flags & ImageFlagBits::Tracked)) {
+                    TrackImage(image, image_id);
+                }
+            }
+            MarkModification(image);
+        });
+    }
+}
+
+template <class P>
 bool TextureCache<P>::IsDownloadable(const ImageBase& image) const noexcept {
     if (!image.IsSafeGpuCopy()) {
         return false;
@@ -1928,7 +1958,26 @@ ImageViewId TextureCache<P>::FindDepthBuffer() {
     if (gpu_addr == 0) {
         return ImageViewId{};
     }
-    const ImageInfo info(regs.zeta, regs.zeta_size, regs.anti_alias_samples_mode);
+    // Target-independent rasterization: the depth buffer keeps the raster sample count while
+    // the color targets use anti_alias_samples_mode.
+    Tegra::Texture::MsaaMode zeta_msaa_mode = regs.anti_alias_samples_mode;
+    if (regs.anti_alias_raster != Tegra::Engines::Maxwell3D::Regs::AntiAliasRaster::Mode1x1) {
+        const auto raster_mode = static_cast<Tegra::Texture::MsaaMode>(regs.anti_alias_raster);
+        bool use_raster = regs.tir_mode == Tegra::Engines::Maxwell3D::Regs::TIRMode::RasterNTargetM;
+        if (!use_raster && regs.anti_alias_samples_mode == Tegra::Texture::MsaaMode::Msaa1x1) {
+            // Clears can be issued before tir_mode is enabled. Only a depth buffer sized for the
+            // raster samples relative to the color target is treated as multisampled, otherwise
+            // it ping-pongs between a 1x and a multisampled image every frame.
+            const auto& rt0 = regs.rt[0];
+            use_raster = rt0.Address() != 0 && rt0.format != Tegra::RenderTargetFormat::NONE &&
+                         regs.zeta_size.width == rt0.width * NumSamplesX(raster_mode) &&
+                         regs.zeta_size.height == rt0.height * NumSamplesY(raster_mode);
+        }
+        if (use_raster) {
+            zeta_msaa_mode = raster_mode;
+        }
+    }
+    const ImageInfo info(regs.zeta, regs.zeta_size, zeta_msaa_mode);
     return FindRenderTargetView(info, gpu_addr);
 }
 

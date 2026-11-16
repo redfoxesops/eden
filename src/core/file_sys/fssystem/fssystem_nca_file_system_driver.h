@@ -54,12 +54,12 @@ struct NcaCryptoConfiguration {
     bool is_plaintext_header_available;
     bool is_available_sw_key;
 };
-static_assert(std::is_trivial_v<NcaCryptoConfiguration>);
+static_assert(std::is_trivially_default_constructible_v<NcaCryptoConfiguration> && std::is_trivially_copyable_v<NcaCryptoConfiguration>);
 
 struct NcaCompressionConfiguration {
     GetDecompressorFunction get_decompressor;
 };
-static_assert(std::is_trivial_v<NcaCompressionConfiguration>);
+static_assert(std::is_trivially_default_constructible_v<NcaCompressionConfiguration> && std::is_trivially_copyable_v<NcaCompressionConfiguration>);
 
 constexpr inline s32 KeyAreaEncryptionKeyCount =
     NcaCryptoConfiguration::KeyAreaEncryptionKeyIndexCount *
@@ -92,9 +92,7 @@ constexpr inline s32 GetKeyTypeValue(u8 key_index, u8 key_generation) {
     return NcaCryptoConfiguration::KeyAreaEncryptionKeyIndexCount * key_generation + key_index;
 }
 
-class NcaReader {
-    YUZU_NON_COPYABLE(NcaReader);
-    YUZU_NON_MOVEABLE(NcaReader);
+class NcaReader : Common::NonCopyable, Common::NonMoveable {
 
 public:
     NcaReader();
@@ -159,9 +157,7 @@ private:
     GetDecompressorFunction m_get_decompressor;
 };
 
-class NcaFsHeaderReader {
-    YUZU_NON_COPYABLE(NcaFsHeaderReader);
-    YUZU_NON_MOVEABLE(NcaFsHeaderReader);
+class NcaFsHeaderReader : Common::NonCopyable, Common::NonMoveable{
 
 public:
     NcaFsHeaderReader() : m_fs_index(-1) {
@@ -212,9 +208,7 @@ private:
     s32 m_fs_index;
 };
 
-class NcaFileSystemDriver {
-    YUZU_NON_COPYABLE(NcaFileSystemDriver);
-    YUZU_NON_MOVEABLE(NcaFileSystemDriver);
+class NcaFileSystemDriver : Common::NonCopyable, Common::NonMoveable{
 
 public:
     struct StorageContext {

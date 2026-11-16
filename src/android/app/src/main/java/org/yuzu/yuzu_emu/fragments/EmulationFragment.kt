@@ -52,6 +52,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.findNavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.fragment.navArgs
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.window.layout.FoldingFeature
 import androidx.window.layout.WindowInfoTracker
 import androidx.window.layout.WindowLayoutInfo
@@ -69,7 +70,9 @@ import org.yuzu.yuzu_emu.HomeNavigationDirections
 import org.yuzu.yuzu_emu.NativeLibrary
 import org.yuzu.yuzu_emu.R
 import org.yuzu.yuzu_emu.activities.EmulationActivity
+import org.yuzu.yuzu_emu.adapters.RuntimeCheatAdapter
 import org.yuzu.yuzu_emu.databinding.DialogOverlayAdjustBinding
+import org.yuzu.yuzu_emu.databinding.DialogListBinding
 import org.yuzu.yuzu_emu.databinding.FragmentEmulationBinding
 import org.yuzu.yuzu_emu.dialogs.QuickSettings
 import org.yuzu.yuzu_emu.features.input.NativeInput
@@ -79,6 +82,8 @@ import org.yuzu.yuzu_emu.features.settings.model.IntSetting
 import org.yuzu.yuzu_emu.features.settings.model.Settings
 import org.yuzu.yuzu_emu.features.settings.model.Settings.EmulationOrientation
 import org.yuzu.yuzu_emu.features.settings.model.Settings.EmulationVerticalAlignment
+import org.yuzu.yuzu_emu.overlay.OverlayColorActivity
+import org.yuzu.yuzu_emu.overlay.OverlayColors
 import org.yuzu.yuzu_emu.features.settings.model.ShortSetting
 import org.yuzu.yuzu_emu.features.settings.utils.SettingsFile
 import org.yuzu.yuzu_emu.model.DriverViewModel
@@ -107,6 +112,11 @@ import java.nio.ByteBuffer
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 import kotlin.or
+import android.graphics.BitmapFactory
+import android.graphics.ImageDecoder
+import android.graphics.drawable.AnimatedImageDrawable
+import kotlinx.coroutines.flow.combine
+import org.yuzu.yuzu_emu.utils.GameMetadata
 
 class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     private lateinit var emulationState: EmulationState
@@ -133,6 +143,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     private val driverViewModel: DriverViewModel by activityViewModels()
 
     private var isInFoldableLayout = false
+    private var startupAnimationDrawable: AnimatedImageDrawable? = null
     private var emulationStarted = false
 
     private lateinit var gpuModel: String
@@ -157,6 +168,13 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     var shouldUseCustom = false
     private var isQuickSettingsMenuOpen = false
     private val quickSettings = QuickSettings(this)
+
+    private val overlayColorLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            if (_binding != null) {
+                binding.surfaceInputOverlay.refreshControls()
+            }
+        }
 
     private val loadAmiiboLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -668,6 +686,53 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         requireActivity().finish()
     }
 
+    private fun loadBootAssets(gamePath: String) {
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            val logoBytes = runCatching { GameMetadata.getLogo(gamePath) }.getOrNull()
+            val bannerBytes = runCatching { GameMetadata.getBanner(gamePath) }.getOrNull()
+
+            val logoBitmap = if (logoBytes != null && logoBytes.isNotEmpty()) {
+                BitmapFactory.decodeByteArray(logoBytes, 0, logoBytes.size)
+            } else {
+                null
+            }
+
+            val animDrawable = if (bannerBytes != null && bannerBytes.isNotEmpty()) {
+                runCatching {
+                    val source = ImageDecoder.createSource(ByteBuffer.wrap(bannerBytes))
+                    ImageDecoder.decodeDrawable(source)
+                }.getOrNull()
+            } else {
+                null
+            }
+
+            withContext(Dispatchers.Main) {
+                if (_binding == null) return@withContext
+
+                // Nintendo Logo
+                if (logoBitmap != null) {
+                    binding.loadingNintendoLogo.setImageBitmap(logoBitmap)
+                    binding.loadingNintendoLogo.visibility = View.VISIBLE
+                } else {
+                    binding.loadingNintendoLogo.visibility = View.GONE
+                }
+
+                // Switch Animation
+                if (animDrawable != null) {
+                    binding.loadingSwitchAnimation.setImageDrawable(animDrawable)
+                    binding.loadingSwitchAnimation.visibility = View.VISIBLE
+                    if (animDrawable is AnimatedImageDrawable) {
+                        startupAnimationDrawable = animDrawable
+                        animDrawable.repeatCount = AnimatedImageDrawable.REPEAT_INFINITE
+                        animDrawable.start()
+                    }
+                } else {
+                    binding.loadingSwitchAnimation.visibility = View.GONE
+                }
+            }
+        }
+    }
+
     private fun completeViewSetup() {
         if (_binding == null || game == null) {
             return
@@ -707,6 +772,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 emulationViewModel.setDrawerOpen(true)
                 updateQuickOverlayMenuEntry(BooleanSetting.SHOW_INPUT_OVERLAY.getBoolean())
                 if (drawerView == binding.inGameMenu) {
+                    // The application changes when e.g. qlaunch launches a game.
+                    updateCheatsMenuEntry()
                     binding.drawerLayout.closeDrawer(binding.quickSettingsSheet)
                 } else if (drawerView == binding.quickSettingsSheet) {
                     binding.drawerLayout.closeDrawer(binding.inGameMenu)
@@ -926,6 +993,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             }
         )
 
+        game?.let { loadBootAssets(it.path) }
+
         game?.let {
             GameIconUtils.loadGameIcon(it, binding.loadingImage)
             binding.loadingTitle.text = it.title
@@ -962,16 +1031,24 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             }
         }
 
-        emulationViewModel.emulationStarted.collect(viewLifecycleOwner) {
-            if (it) {
+        combine(emulationViewModel.emulationStarted,
+            emulationViewModel.areShadersBuilt
+        ) { started, shadersBuilt -> started && shadersBuilt }.collect(viewLifecycleOwner)
+        { isReady ->
+            if (isReady) {
                 binding.drawerLayout.setDrawerLockMode(IntSetting.LOCK_DRAWER.getInt())
                 ViewUtils.showView(binding.surfaceInputOverlay)
+                binding.loadingText.setText(R.string.loading)
+                binding.loadingProgressIndicator.isIndeterminate = true
                 ViewUtils.hideView(binding.loadingIndicator)
+                startupAnimationDrawable?.stop()
+                startupAnimationDrawable = null
+                ViewUtils.hideView(binding.loadingNintendoLogo)
+                ViewUtils.hideView(binding.loadingSwitchAnimation)
 
                 emulationState.updateSurface()
 
-                binding.inGameMenu.menu.findItem(R.id.menu_cheats)?.isVisible =
-                    NativeLibrary.getRuntimeCheats().isNotEmpty()
+                updateCheatsMenuEntry()
                 updateShowStatsOverlay()
                 updateSocOverlay()
 
@@ -1002,6 +1079,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                 ViewUtils.showView(binding.loadingIndicator)
                 ViewUtils.hideView(binding.inputContainer)
                 ViewUtils.hideView(binding.showStatsOverlayText)
+                ViewUtils.hideView(binding.showSocOverlayText)
             } else if (deferGameSetupUntilStopCompletes) {
                 if (!isAdded) {
                     return@collect
@@ -1021,11 +1099,14 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         emulationViewModel.programChanged.collect(viewLifecycleOwner) {
             if (it != 0) {
                 emulationViewModel.setEmulationStarted(false)
+                emulationViewModel.setAreShadersBuilt(false)
                 binding.drawerLayout.close()
                 binding.drawerLayout
                     .setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
                 ViewUtils.hideView(binding.surfaceInputOverlay)
                 ViewUtils.showView(binding.loadingIndicator)
+
+                game?.let { loadBootAssets(it.path) }
             }
         }
 
@@ -1134,37 +1215,26 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         val cheats = NativeLibrary.getRuntimeCheats()
         if (cheats.isEmpty()) return
 
-        val names = cheats.map { it.name.ifEmpty { getString(R.string.unnamed_cheat) } }.toTypedArray()
-        lateinit var dialog: androidx.appcompat.app.AlertDialog
-        dialog = MaterialAlertDialogBuilder(requireContext())
+        val adapter = RuntimeCheatAdapter(cheats.toList())
+        val dialogBinding = DialogListBinding.inflate(layoutInflater)
+        dialogBinding.dialogList.apply {
+            layoutManager = LinearLayoutManager(requireContext())
+            this.adapter = adapter
+        }
+        val dialog = MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.cheats)
-            .setMultiChoiceItems(names, cheats.map { it.enabled }.toBooleanArray()) { _, which, enabled ->
-                if (cheats[which].isMaster) {
-                    dialog.listView.setItemChecked(which, true)
-                } else if (!NativeLibrary.setRuntimeCheatEnabled(cheats[which].id, enabled)) {
-                    dialog.listView.setItemChecked(which, !enabled)
-                }
-            }
-            .setNegativeButton(R.string.disable_all_cheats) { _, _ ->
-                cheats.forEach {
-                    if (!it.isMaster) NativeLibrary.setRuntimeCheatEnabled(it.id, false)
-                }
-            }
-            .setNeutralButton(R.string.enable_all_cheats) { _, _ ->
-                cheats.forEach {
-                    if (!it.isMaster) NativeLibrary.setRuntimeCheatEnabled(it.id, true)
-                }
-            }
+            .setView(dialogBinding.root)
+            .setNegativeButton(R.string.disable_all_cheats, null)
+            .setNeutralButton(R.string.enable_all_cheats, null)
             .setPositiveButton(R.string.done, null)
             .create()
         dialog.setOnShowListener {
-            val listView = dialog.listView
-            fun updateMasterVisuals() = repeat(listView.childCount) { index ->
-                listView.getChildAt(index).alpha =
-                    if (cheats[listView.firstVisiblePosition + index].isMaster) 0.38f else 1f
+            dialog.getButton(DialogInterface.BUTTON_NEGATIVE).setOnClickListener {
+                adapter.setAllEnabled(false)
             }
-            listView.setOnScrollChangeListener { _, _, _, _, _ -> updateMasterVisuals() }
-            updateMasterVisuals()
+            dialog.getButton(DialogInterface.BUTTON_NEUTRAL).setOnClickListener {
+                adapter.setAllEnabled(true)
+            }
         }
         dialog.show()
     }
@@ -1309,6 +1379,12 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
     private fun openQuickSettingsMenu() {
         binding.drawerLayout.closeDrawer(binding.inGameMenu)
         binding.drawerLayout.openDrawer(binding.quickSettingsSheet)
+    }
+
+    private fun updateCheatsMenuEntry() {
+        val b = _binding ?: return
+        b.inGameMenu.menu.findItem(R.id.menu_cheats)?.isVisible =
+            NativeLibrary.getRuntimeCheats().isNotEmpty()
     }
 
     private fun updateQuickOverlayMenuEntry(isVisible: Boolean) {
@@ -1520,6 +1596,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        startupAnimationDrawable?.stop()
+        startupAnimationDrawable = null
         amiiboLoadJob?.cancel()
         amiiboLoadJob = null
         perfStatsRunnable?.let { perfStatsUpdateHandler.removeCallbacks(it) }
@@ -1557,12 +1635,17 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
         // we need to reinitialize the auto-hide timer
         initializeOverlayAutoHide()
 
+        if (OverlayColors.isFollowingAppTheme()) {
+            b.surfaceInputOverlay.refreshControls()
+        }
+
         addQuickSettings()
     }
 
     private fun resetInputOverlay() {
         IntSetting.OVERLAY_SCALE.reset()
         IntSetting.OVERLAY_OPACITY.reset()
+        resetOverlayColors()
         binding.surfaceInputOverlay.post {
             binding.surfaceInputOverlay.resetLayoutVisibilityAndPlacement()
             binding.surfaceInputOverlay.resetIndividualControlScale()
@@ -2136,6 +2219,12 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
                     true
                 }
 
+                R.id.menu_overlay_color -> {
+                    binding.drawerLayout.close()
+                    overlayColorLauncher.launch(OverlayColorActivity.createIntent(requireContext()))
+                    true
+                }
+
                 R.id.menu_toggle_controls -> {
                     val overlayControlData = NativeConfig.getOverlayControlData()
                     val optionsArray = BooleanArray(overlayControlData.size)
@@ -2282,7 +2371,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             .setNeutralButton(R.string.slider_default) { _: DialogInterface?, _: Int ->
                 setControlScale(50)
                 setControlOpacity(100)
+                resetOverlayColors()
                 binding.surfaceInputOverlay.resetIndividualControlScale()
+                NativeConfig.saveGlobalConfig()
             }
             .show()
     }
@@ -2294,6 +2385,11 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
 
     private fun setControlOpacity(opacity: Int) {
         IntSetting.OVERLAY_OPACITY.setInt(opacity)
+        binding.surfaceInputOverlay.refreshControls()
+    }
+
+    private fun resetOverlayColors() {
+        OverlayColors.resetToDefault()
         binding.surfaceInputOverlay.refreshControls()
     }
 

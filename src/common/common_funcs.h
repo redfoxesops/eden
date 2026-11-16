@@ -12,17 +12,6 @@
 #include <cstdlib> // for exit
 #include "common/common_types.h"
 
-#ifndef __cpp_lib_to_underlying
-namespace std {
-// https://en.cppreference.com/cpp/utility/to_underlying
-template<class T>
-    requires std::is_enum_v<T>
-constexpr std::underlying_type_t<T> to_underlying(T e) noexcept {
-    return std::underlying_type_t<T>(e);
-}
-}
-#endif
-
 /// Textually concatenates two tokens. The double-expansion is required by the C preprocessor.
 #define CONCAT2(x, y) DO_CONCAT2(x, y)
 #define DO_CONCAT2(x, y) x##y
@@ -86,15 +75,22 @@ constexpr std::underlying_type_t<T> to_underlying(T e) noexcept {
         return std::to_underlying(key) == 0;                                                       \
     }
 
-#define YUZU_NON_COPYABLE(cls)                                                                     \
-    cls(const cls&) = delete;                                                                      \
-    cls& operator=(const cls&) = delete
-
-#define YUZU_NON_MOVEABLE(cls)                                                                     \
-    cls(cls&&) = delete;                                                                           \
-    cls& operator=(cls&&) = delete
-
 namespace Common {
+
+class NonCopyable {
+protected:
+    NonCopyable() = default;
+    ~NonCopyable() = default;
+    NonCopyable(const NonCopyable&) = delete;
+    NonCopyable& operator=(const NonCopyable&) = delete;
+};
+class NonMoveable {
+protected:
+    NonMoveable() = default;
+    ~NonMoveable() = default;
+    NonMoveable(NonMoveable&&) = delete;
+    NonMoveable& operator=(NonMoveable&&) = delete;
+};
 
 [[nodiscard]] constexpr u32 MakeMagic(char a, char b, char c, char d) {
     return u32(a) | u32(b) << 8 | u32(c) << 16 | u32(d) << 24;

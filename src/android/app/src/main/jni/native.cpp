@@ -10,6 +10,7 @@
 #include <codecvt>
 #include <cstdio>
 #include <cstring>
+#include <format>
 #include <locale>
 #include <map>
 #include <set>
@@ -605,15 +606,16 @@ constexpr CpuPartInfo s_cpu_list[] = {
     {0x51, 0xc00, "Falkor"},
     {0x51, 0xc01, "Saphira"},
     {0x51, 0x001, "Oryon"},
+    {0x51, 0x002, "Oryon"},
 };
 
-const char* find_cpu_name(u32 vendor, u32 part) {
+std::string find_cpu_name(u32 vendor, u32 part) {
     for (const auto& cpu : s_cpu_list) {
         if (cpu.vendor == vendor && cpu.part == part) {
             return cpu.name;
         }
     }
-    return nullptr;
+    return std::format("Unknown (vendor={:#04x}, part={:#03x})", vendor, part);
 }
 
 u64 read_midr_sysfs(u32 cpu_id) {
@@ -655,7 +657,7 @@ std::pair<u32, std::string> get_pretty_cpus() {
             const auto part = (midr >> 4) & 0xfff;
 
             if (!cpus.empty()) cpus += " + ";
-            cpus += fmt::format("{}x {}", count, find_cpu_name(vendor, part));
+            cpus += std::format("{}x {}", count, find_cpu_name(vendor, part));
         }
     }
 
@@ -879,7 +881,7 @@ jobjectArray Java_org_yuzu_yuzu_1emu_utils_GpuDriverHelper_getSystemDriverInfo(
 
     auto driver_version = device.GetDriverVersion();
     auto version_string =
-        fmt::format("{}.{}.{}", VK_API_VERSION_MAJOR(driver_version),
+        std::format("{}.{}.{}", VK_API_VERSION_MAJOR(driver_version),
                     VK_API_VERSION_MINOR(driver_version), VK_API_VERSION_PATCH(driver_version));
     auto driver_name = device.GetDriverName();
 #else
@@ -950,14 +952,16 @@ jboolean Java_org_yuzu_yuzu_1emu_NativeLibrary_isPaused(JNIEnv* env, jclass claz
 jobjectArray Java_org_yuzu_yuzu_1emu_NativeLibrary_getRuntimeCheats(JNIEnv* env, jclass clazz) {
     const auto cheats = EmulationSession::GetInstance().System().GetRuntimeCheats();
     const auto runtime_cheat_class = env->FindClass("org/yuzu/yuzu_emu/NativeLibrary$RuntimeCheat");
-    const auto constructor = env->GetMethodID(runtime_cheat_class, "<init>", "(ILjava/lang/String;ZZ)V");
+    const auto constructor = env->GetMethodID(runtime_cheat_class, "<init>", "(ILjava/lang/String;ZZII)V");
     auto result = env->NewObjectArray(static_cast<jsize>(cheats.size()), runtime_cheat_class, nullptr);
     for (jsize i = 0; i < static_cast<jsize>(cheats.size()); ++i) {
         const auto& cheat = cheats[i];
         const auto name = Common::Android::ToJString(env, cheat.name);
         const auto item = env->NewObject(runtime_cheat_class, constructor, static_cast<jint>(cheat.id), name,
                                          static_cast<jboolean>(cheat.enabled),
-                                         static_cast<jboolean>(cheat.is_master));
+                                         static_cast<jboolean>(cheat.is_master),
+                                         static_cast<jint>(cheat.type),
+                                         static_cast<jint>(cheat.parent_id));
         env->SetObjectArrayElement(result, i, item);
         env->DeleteLocalRef(name);
         env->DeleteLocalRef(item);
@@ -1083,7 +1087,7 @@ jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getCpuSummary(JNIEnv* env, jobject
         u32 threads = pretty_cpus.first;
         std::string cpus = pretty_cpus.second;
 
-        fmt::format_to(std::back_inserter(result), "CPUs: {}\n{} Threads",
+        std::format_to(std::back_inserter(result), "CPUs: {}\n{} Threads",
                        cpus, threads);
 
         FILE* f = std::fopen(CPUINFO_PATH, "r");
@@ -1171,7 +1175,7 @@ jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getCpuSummary(JNIEnv* env, jobject
             }
         }
 
-        fmt::format_to(std::back_inserter(result), "\nLLVM CPU: {}", fallback_cpu_detection());
+        std::format_to(std::back_inserter(result), "\nLLVM CPU: {}", fallback_cpu_detection());
 
         return Common::Android::ToJString(env, result);
     } catch (...) {
@@ -1255,7 +1259,7 @@ jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getVulkanDriverVersion(JNIEnv* env
             const u32 major = (driver_version >> 24) << 2;
             const u32 minor = (driver_version >> 12) & 0xFFF;
             const u32 patch = driver_version & 0xFFF;
-            version_str = fmt::format("{}.{}.{}", major, minor, patch);
+            version_str = std::format("{}.{}.{}", major, minor, patch);
         }
         else if (vendor_id == VENDOR_ARM) {
             u32 major = VK_API_VERSION_MAJOR(driver_version);
@@ -1268,14 +1272,14 @@ jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getVulkanDriverVersion(JNIEnv* env
                 minor = (driver_version >> 12) & 0x3FF;
                 patch = driver_version & 0xFFF;
             }
-            version_str = fmt::format("{}.{}.{}", major, minor, patch);
+            version_str = std::format("{}.{}.{}", major, minor, patch);
         }
         // Standard Vulkan version encoding for other vendors
         else {
             const u32 major = VK_API_VERSION_MAJOR(driver_version);
             const u32 minor = VK_API_VERSION_MINOR(driver_version);
             const u32 patch = VK_API_VERSION_PATCH(driver_version);
-            version_str = fmt::format("{}.{}.{}", major, minor, patch);
+            version_str = std::format("{}.{}.{}", major, minor, patch);
         }
 
         return Common::Android::ToJString(env, version_str);
@@ -1299,8 +1303,8 @@ jstring Java_org_yuzu_yuzu_1emu_NativeLibrary_getVulkanApiVersion(JNIEnv* env, j
 
         // Include variant if non-zero (rare on Android)
         const std::string version_str = variant > 0
-            ? fmt::format("{}.{}.{}.{}", variant, major, minor, patch)
-            : fmt::format("{}.{}.{}", major, minor, patch);
+            ? std::format("{}.{}.{}.{}", variant, major, minor, patch)
+            : std::format("{}.{}.{}", major, minor, patch);
 
         return Common::Android::ToJString(env, version_str);
     } catch (...) {
@@ -1390,7 +1394,7 @@ void Java_org_yuzu_yuzu_1emu_NativeLibrary_run(JNIEnv* env, jobject jobj, jstrin
 }
 
 void Java_org_yuzu_yuzu_1emu_NativeLibrary_logDeviceInfo(JNIEnv* env, jclass clazz) {
-    LOG_INFO(Frontend, "eden Version: {}-{}", Common::g_scm_branch, Common::g_scm_desc);
+    LOG_INFO(Frontend, "eden Version: {}-{}", std::string_view{Common::g_scm_branch}, std::string_view{Common::g_scm_desc});
     LOG_INFO(Frontend, "Host OS: Android API level {}", android_get_device_api_level());
 }
 
@@ -1912,14 +1916,14 @@ JNIEXPORT jobject JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_checkForUpdate(
     std::optional<Common::Net::Release> release = UpdateChecker::GetUpdate();
     if (!release) return nullptr;
 
-    const std::string tag = release->tag;
-    const std::string title = release->title;
+    const std::string tag = release->tag_name;
+    const std::string title = release->name;
     const std::string body = release->body;
     const std::string url = release->html_url;
 
     // Android *should* only ever define a single asset.
     // If not, something has gone wrong, but the Kotlin side can handle it.
-    const auto assets = release->GetPlatformAssets();
+    const auto assets = Common::Net::GetPlatformAssets(release.value());
 
     jclass updateResultClass = env->FindClass("org/yuzu/yuzu_emu/NativeLibrary$UpdateResult");
     if (!updateResultClass) {
@@ -1959,9 +1963,10 @@ JNIEXPORT jobject JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_checkForUpdate(
     env->CallVoidMethod(updateResult, setUrl, jurl);
 
     // TODO(crueter): Handling for multiple assets?
+    // TODO(crueter): Digest verification
     // Maybe another data class x(
-    for (const Common::Net::Asset &a : assets) {
-        const auto jaurl = env->NewStringUTF(a.path.c_str());
+    for (const Common::Net::NamedAsset &a : assets) {
+        const auto jaurl = env->NewStringUTF(a.asset.browser_download_url.c_str());
         env->CallVoidMethod(updateResult, addAsset, jaurl);
         env->DeleteLocalRef(jaurl);
     }
@@ -2168,7 +2173,7 @@ JNIEXPORT jstring JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_getUserImagePath
     const auto uuid = Common::UUID{uuid_string};
 
     const auto path = Common::FS::GetEdenPath(Common::FS::EdenPath::NANDDir) /
-        fmt::format("system/save/8000000000000010/su/avators/{}.jpg", uuid.FormattedString());
+        std::format("system/save/8000000000000010/su/avators/{}.jpg", uuid.FormattedString());
 
     jstring result = Common::Android::ToJString(env, Common::FS::PathToUTF8String(path));
     return result ? result : env->NewStringUTF("");
@@ -2184,7 +2189,7 @@ JNIEXPORT jboolean JNICALL Java_org_yuzu_yuzu_1emu_NativeLibrary_saveUserImage(
     const auto image_source = Common::Android::GetJString(env, jimagePath);
 
     const auto dest_path = Common::FS::GetEdenPath(Common::FS::EdenPath::NANDDir) /
-        fmt::format("system/save/8000000000000010/su/avators/{}.jpg", uuid.FormattedString());
+        std::format("system/save/8000000000000010/su/avators/{}.jpg", uuid.FormattedString());
 
     const auto dest_dir = dest_path.parent_path();
     if (!Common::FS::CreateDirs(dest_dir)) {

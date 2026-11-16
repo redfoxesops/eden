@@ -157,17 +157,15 @@ enum class ResultStatus : u16 {
     ErrorINITooManyKIPs,
     ErrorIntegrityVerificationNotImplemented,
     ErrorIntegrityVerificationFailed,
+    ErrorUnsupportedSwitch2,
 };
 
 std::string GetResultStatusString(ResultStatus status);
 std::ostream& operator<<(std::ostream& os, ResultStatus status);
 
 /// Interface for loading an application
-class AppLoader {
+class AppLoader : Common::NonCopyable, Common::NonMoveable {
 public:
-    YUZU_NON_COPYABLE(AppLoader);
-    YUZU_NON_MOVEABLE(AppLoader);
-
     struct LoadParameters {
         s32 main_thread_priority;
         u64 main_thread_stack_size;
