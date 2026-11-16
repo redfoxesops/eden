@@ -133,6 +133,11 @@ public:
 
     [[nodiscard]] const ResolveShadow* GetValidResolveShadow(VkImage msaa_image) const;
 
+    /// Multisampled stand-in for a single-sampled color target rendered with a TIR depth buffer
+    [[nodiscard]] VkImageView GetOrCreateTirColorScratch(VkImage color_image, VkFormat format,
+                                                         VkExtent2D extent, u32 layers,
+                                                         VkSampleCountFlagBits samples);
+
     void InvalidateResolveShadow(VkImage msaa_image);
 
     void MarkResolveShadowUpToDate(VkImage msaa_image);
@@ -159,6 +164,7 @@ public:
     std::optional<ASTCDecoderPass> astc_decoder_pass;
 
     std::optional<BlockLinearUnswizzle3DPass> bl3d_unswizzle_pass;
+    std::optional<BlockLinearUnswizzle2DBufferPass> bl2d_buffer_unswizzle_pass;
     const Settings::ResolutionScalingInfo& resolution;
     std::array<std::vector<VkFormat>, VideoCore::Surface::MaxPixelFormat> view_formats;
 
@@ -187,6 +193,15 @@ public:
 
     std::vector<MsaaScratchImage> msaa_scratch_images;
     ::Common::unordered_map<VkImage, ResolveShadow> resolve_shadows;
+    struct TirColorScratch {
+        vk::Image image;
+        vk::ImageView view;
+        VkFormat format = VK_FORMAT_UNDEFINED;
+        VkExtent2D extent{};
+        u32 layers = 0;
+        VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
+    };
+    ::Common::unordered_map<VkImage, TirColorScratch> tir_color_scratch;
     std::vector<std::pair<u64, ResolveShadow>> pending_resolve_shadows;
 };
 
@@ -279,6 +294,22 @@ public:
     void MarkResolveShadowsUpToDate() const;
 
 private:
+    /// Builds a framebuffer for single-sampled color targets drawn with a multisampled depth
+    /// buffer (target-independent rasterization). Color is rendered into multisampled scratch
+    /// images that resolve into the real targets at the end of the pass.
+    void CreateMixedSamplesFramebuffer(TextureCacheRuntime& runtime,
+                                       std::span<ImageView*, NUM_RT> color_buffers,
+                                       std::span<const VkImageView> attachments,
+                                       RenderPassKey renderpass_key, u32 layers,
+                                       VkExtent2D extent);
+
+    /// Fetches the render pass for the key from the cache and remembers it for variants.
+    void UseRenderPass(TextureCacheRuntime& runtime, const RenderPassKey& renderpass_key);
+
+    /// Creates the Vulkan framebuffer for the current render pass and render area.
+    void CreateVkFramebuffer(TextureCacheRuntime& runtime,
+                             std::span<const VkImageView> attachments, u32 layers);
+
     static constexpr size_t NUM_MEMOIZED_RENDER_PASS_VARIANTS = 8;
 
     vk::Framebuffer framebuffer;
@@ -324,6 +355,10 @@ public:
 
     void UploadMemory(const StagingBufferRef& map,
                       std::span<const VideoCommon::BufferImageCopy> copies);
+
+    /// Replaces the image contents with its block linear guest data held in a GPU buffer.
+    /// Returns false when the image layout is not supported.
+    bool UploadSwizzledFromBuffer(VkBuffer buffer, VkDeviceSize offset);
 
     void DownloadMemory(VkBuffer buffer, size_t offset,
                         std::span<const VideoCommon::BufferImageCopy> copies);

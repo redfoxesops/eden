@@ -10,7 +10,6 @@
 #include "common/alignment.h"
 #include "core/file_sys/fssystem/fs_i_storage.h"
 #include "core/file_sys/fssystem/fs_types.h"
-#include "core/file_sys/fssystem/fssystem_alignment_matching_storage.h"
 #include "core/file_sys/fssystem/fssystem_integrity_verification_storage.h"
 #include "core/file_sys/vfs/vfs_offset.h"
 
@@ -22,7 +21,7 @@ struct HierarchicalIntegrityVerificationLevelInformation {
     s32 block_order;
     std::array<u8, 4> reserved;
 };
-static_assert(std::is_trivial_v<HierarchicalIntegrityVerificationLevelInformation>);
+static_assert(std::is_trivially_default_constructible_v<HierarchicalIntegrityVerificationLevelInformation> && std::is_trivially_copyable_v<HierarchicalIntegrityVerificationLevelInformation>);
 static_assert(sizeof(HierarchicalIntegrityVerificationLevelInformation) == 0x18);
 static_assert(alignof(HierarchicalIntegrityVerificationLevelInformation) == 0x4);
 
@@ -43,7 +42,7 @@ struct HierarchicalIntegrityVerificationInformation {
         return this->info[this->max_layers - 2].size;
     }
 };
-static_assert(std::is_trivial_v<HierarchicalIntegrityVerificationInformation>);
+static_assert(std::is_trivially_default_constructible_v<HierarchicalIntegrityVerificationInformation> && std::is_trivially_copyable_v<HierarchicalIntegrityVerificationInformation>);
 
 struct HierarchicalIntegrityVerificationMetaInformation {
     u32 magic;
@@ -51,19 +50,16 @@ struct HierarchicalIntegrityVerificationMetaInformation {
     u32 master_hash_size;
     HierarchicalIntegrityVerificationInformation level_hash_info;
 };
-static_assert(std::is_trivial_v<HierarchicalIntegrityVerificationMetaInformation>);
+static_assert(std::is_trivially_default_constructible_v<HierarchicalIntegrityVerificationMetaInformation> && std::is_trivially_copyable_v<HierarchicalIntegrityVerificationMetaInformation>);
 
 struct HierarchicalIntegrityVerificationSizeSet {
     s64 control_size;
     s64 master_hash_size;
     std::array<s64, IntegrityMaxLayerCount - 2> layered_hash_sizes;
 };
-static_assert(std::is_trivial_v<HierarchicalIntegrityVerificationSizeSet>);
+static_assert(std::is_trivially_default_constructible_v<HierarchicalIntegrityVerificationSizeSet> && std::is_trivially_copyable_v<HierarchicalIntegrityVerificationSizeSet>);
 
 class HierarchicalIntegrityVerificationStorage : public IReadOnlyStorage {
-    YUZU_NON_COPYABLE(HierarchicalIntegrityVerificationStorage);
-    YUZU_NON_MOVEABLE(HierarchicalIntegrityVerificationStorage);
-
 public:
     using GenerateRandomFunction = void (*)(void* dst, size_t size);
 

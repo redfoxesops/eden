@@ -8,6 +8,8 @@
 
 #include "dynarmic/backend/x64/block_of_code.h"
 
+#include <cstdlib>
+
 #ifdef _WIN32
 #    define WIN32_LEAN_AND_MEAN
 #    include <windows.h>
@@ -17,8 +19,8 @@
 
 #ifdef __APPLE__
 #    include <errno.h>
-#    include <fmt/format.h>
 #    include <sys/sysctl.h>
+#    include <print>
 #endif
 
 #include <array>
@@ -119,11 +121,13 @@ static const HostFeature features = []() {
             f |= HostFeature::FastBMI2;
         }
     }
+#ifdef DYNARMIC_HOST_FEATURE_OVERRIDE
+    // Test builds only: DYNARMIC_HOST_FEATURES=<hex mask> hides features to reach the fallbacks.
+    if (const char* mask = std::getenv("DYNARMIC_HOST_FEATURES"); mask && *mask)
+        f &= static_cast<HostFeature>(std::strtoull(mask, nullptr, 16));
+#endif
     return f;
 }();
-HostFeature GetHostFeatures() {
-    return features;
-}
 
 #ifdef __APPLE__
 bool IsUnderRosetta() {
@@ -131,7 +135,7 @@ bool IsUnderRosetta() {
     size_t result_size = sizeof(result);
     if (sysctlbyname("sysctl.proc_translated", &result, &result_size, nullptr, 0) == -1) {
         if (errno != ENOENT)
-            fmt::print("IsUnderRosetta: Failed to detect Rosetta state, assuming not under Rosetta");
+            std::print("IsUnderRosetta: Failed to detect Rosetta state, assuming not under Rosetta");
         return false;
     }
     return result != 0;
@@ -139,6 +143,10 @@ bool IsUnderRosetta() {
 #endif
 
 }  // anonymous namespace
+
+HostFeature GetHostFeatures() {
+    return features;
+}
 
 BlockOfCode::BlockOfCode(RunCodeCallbacks cb, JitStateInfo jsi, size_t total_code_size, std::function<void(BlockOfCode&)> rcp)
     : Xbyak::CodeGenerator(total_code_size

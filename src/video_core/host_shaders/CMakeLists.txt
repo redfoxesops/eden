@@ -83,6 +83,7 @@ set(SHADER_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/vulkan_present.vert
     ${CMAKE_CURRENT_SOURCE_DIR}/vulkan_present_scaleforce_fp16.frag
     ${CMAKE_CURRENT_SOURCE_DIR}/vulkan_present_scaleforce_fp32.frag
+    ${CMAKE_CURRENT_SOURCE_DIR}/vulkan_block_linear_unswizzle_2d_buffer.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/vulkan_quad_indexed.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/vulkan_turbo_mode.comp
     ${CMAKE_CURRENT_SOURCE_DIR}/vulkan_uint8.comp
@@ -160,7 +161,7 @@ foreach(SOURCE_FILE IN ITEMS ${SHADER_FILES})
             OUTPUT
                 ${SPIRV_HEADER_FILE}
             COMMAND
-                ${GLSLANGVALIDATOR} -V ${QUIET_FLAG} -I"${FIDELITYFX_INCLUDE_DIR}" ${GLSL_FLAGS} --variable-name ${SPIRV_VARIABLE_NAME} -o ${SPIRV_HEADER_FILE} ${SOURCE_FILE} --target-env ${SPIR_V_VERSION}
+                ${GLSLANGVALIDATOR} -V ${QUIET_FLAG} "-I${FIDELITYFX_INCLUDE_DIR}" ${GLSL_FLAGS} --variable-name ${SPIRV_VARIABLE_NAME} -o ${SPIRV_HEADER_FILE} ${SOURCE_FILE} --target-env ${SPIR_V_VERSION}
             MAIN_DEPENDENCY
                 ${SOURCE_FILE}
         )
@@ -196,7 +197,7 @@ foreach(VARIANT IN ITEMS ${SHADER_TYPE_VARIANTS})
         OUTPUT
             ${VARIANT_HEADER_FILE}
         COMMAND
-            ${GLSLANGVALIDATOR} -V ${QUIET_FLAG} -I"${FIDELITYFX_INCLUDE_DIR}" ${GLSL_FLAGS}
+            ${GLSLANGVALIDATOR} -V ${QUIET_FLAG} "-I${FIDELITYFX_INCLUDE_DIR}" ${GLSL_FLAGS}
             -DSAMPLER_TYPE=${VARIANT_SAMPLER} -DTEXEL_TYPE=${VARIANT_TEXEL}
             --variable-name ${VARIANT_VARIABLE_NAME} -o ${VARIANT_HEADER_FILE} ${VARIANT_SOURCE}
             --target-env ${SPIR_V_VERSION}

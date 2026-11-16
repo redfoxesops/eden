@@ -751,7 +751,7 @@ void Room::RoomImpl::SendStatusMessage(StatusMessageTypes type, const std::strin
     enet_host_flush(server);
 
     const std::string display_name =
-        username.empty() ? nickname : fmt::format("{} ({})", nickname, username);
+        username.empty() ? nickname : std::format("{} ({})", nickname, username);
 
     switch (type) {
     case IdMemberJoin:
@@ -1000,7 +1000,7 @@ void Room::RoomImpl::HandleGameInfoPacket(const ENetEvent* event) {
             const std::string display_name =
                 member->user_data.username.empty()
                     ? member->nickname
-                    : fmt::format("{} ({})", member->nickname, member->user_data.username);
+                    : std::format("{} ({})", member->nickname, member->user_data.username);
 
             if (game_info.name.empty()) {
                 LOG_INFO(Network, "{} is not playing", display_name);
@@ -1108,7 +1108,7 @@ std::vector<Member> Room::GetRoomMemberList() const {
         member.nickname = member_impl.nickname;
         member.username = member_impl.user_data.username;
         member.display_name = member_impl.user_data.display_name;
-        member.avatar_url = member_impl.user_data.avatar_url;
+        member.avatarUrl = member_impl.user_data.avatar_url;
         member.fake_ip = member_impl.fake_ip;
         member.game = member_impl.game_info;
         member_list.push_back(member);

@@ -17,7 +17,7 @@
 #define SDL_MAIN_USE_CALLBACKS 1
 #include <SDL3/SDL_main.h>
 
-#include <fmt/ostream.h>
+#include <format>
 
 #include "common/logging.h"
 #include "common/scm_rev.h"
@@ -140,15 +140,15 @@ static void OnStatusMessageReceived(const Network::StatusMessageEntry& msg) {
     std::string message = [&]() {
         switch (msg.type) {
         case Network::IdMemberJoin:
-            return fmt::format("{} has joined", msg.nickname);
+            return std::format("{} has joined", msg.nickname);
         case Network::IdMemberLeave:
-            return fmt::format("{} has left", msg.nickname);
+            return std::format("{} has left", msg.nickname);
         case Network::IdMemberKicked:
-            return fmt::format("{} has been kicked", msg.nickname);
+            return std::format("{} has been kicked", msg.nickname);
         case Network::IdMemberBanned:
-            return fmt::format("{} has been banned", msg.nickname);
+            return std::format("{} has been banned", msg.nickname);
         case Network::IdAddressUnbanned:
-            return fmt::format("{} has been unbanned", msg.nickname);
+            return std::format("{} has been unbanned", msg.nickname);
         default:
             return std::string{};
         }
@@ -159,11 +159,13 @@ static void OnStatusMessageReceived(const Network::StatusMessageEntry& msg) {
 
 struct SdlState {
     Core::System system{};
+    InputCommon::InputSubsystem input_subsystem{};
     std::unique_ptr<EmuWindow_SDL3> emu_window;
 };
 
 extern "C" SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     SdlState* state = new SdlState();
+    *appstate = state;
 
 #ifdef _WIN32
     if (AttachConsole(ATTACH_PARENT_PROCESS)) {
@@ -195,14 +197,16 @@ extern "C" SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
 
     Core::ApplyLaunchParams(lp);
 
+    if (lp.print_help || lp.print_version) {
+        return SDL_APP_SUCCESS;
+    }
+
     if (lp.filepath.empty()) {
         LOG_CRITICAL(Frontend, "Failed to load ROM: No ROM specified");
         return SDL_APP_FAILURE;
     }
 
     state->system.Initialize();
-
-    InputCommon::InputSubsystem input_subsystem{};
 
     // Apply the command line arguments
     state->system.ApplySettings();
@@ -212,14 +216,14 @@ extern "C" SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     case Settings::RendererBackend::OpenGL_GLSL:
     case Settings::RendererBackend::OpenGL_GLASM:
     case Settings::RendererBackend::OpenGL_SPIRV:
-        state->emu_window = std::make_unique<EmuWindow_SDL3_GL>(&input_subsystem, state->system, lp.fullscreen);
+        state->emu_window = std::make_unique<EmuWindow_SDL3_GL>(&state->input_subsystem, state->system, lp.fullscreen);
         break;
 #endif
     case Settings::RendererBackend::Vulkan:
-        state->emu_window = std::make_unique<EmuWindow_SDL3_VK>(&input_subsystem, state->system, lp.fullscreen);
+        state->emu_window = std::make_unique<EmuWindow_SDL3_VK>(&state->input_subsystem, state->system, lp.fullscreen);
         break;
     case Settings::RendererBackend::Null:
-        state->emu_window = std::make_unique<EmuWindow_SDL3_Null>(&input_subsystem, state->system, lp.fullscreen);
+        state->emu_window = std::make_unique<EmuWindow_SDL3_Null>(&state->input_subsystem, state->system, lp.fullscreen);
         break;
     default:
         LOG_CRITICAL(Frontend, "Invalid renderer backend");
@@ -262,7 +266,7 @@ extern "C" SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
             "While attempting to load the ROM requested, an error occurred. Please "
             "refer to the Eden wiki for more information or the Eden discord for "
             "additional help.\n\nError Code: {:04X}-{:04X}\nError Description: {}",
-            loader_id, error_id, Loader::ResultStatus(error_id));
+            loader_id, error_id, Loader::GetResultStatusString(Loader::ResultStatus(error_id)));
         return SDL_APP_FAILURE;
     }
 
@@ -295,7 +299,7 @@ extern "C" SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
 
     // QLaunch launched applications (should) now reload shader cache.
     static std::mutex shader_cache_reload_mutex;
-    state->system.RegisterApplicationChangedCallback([&state](u64 changed_program_id) {
+    state->system.RegisterApplicationChangedCallback([state](u64 changed_program_id) {
         if (!Settings::values.use_disk_shader_cache.GetValue()) {
             return;
         }
@@ -319,7 +323,7 @@ extern "C" SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv) {
     void(state->system.Run());
     if (state->system.DebuggerEnabled())
         state->system.InitializeDebugger();
-    return SDL_APP_SUCCESS;
+    return SDL_APP_CONTINUE;
 }
 extern "C" SDL_AppResult SDL_AppIterate(void *appstate) {
     SdlState *state = (SdlState *)appstate;
@@ -328,13 +332,18 @@ extern "C" SDL_AppResult SDL_AppIterate(void *appstate) {
 extern "C" SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
     SdlState *state = (SdlState *)appstate;
     state->emu_window->OnEvent(*event);
-    return SDL_APP_SUCCESS;
+    return SDL_APP_CONTINUE;
 }
 extern "C" void SDL_AppQuit(void *appstate, SDL_AppResult result) {
     SdlState *state = (SdlState *)appstate;
+    if (state == nullptr) {
+        return;
+    }
     state->system.DetachDebugger();
-    void(state->system.Pause());
-    state->system.ShutdownMainProcess();
+    if (state->system.IsPoweredOn()) {
+        state->system.Pause();
+        state->system.ShutdownMainProcess();
+    }
     delete state;
 }
 

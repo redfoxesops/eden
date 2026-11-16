@@ -385,7 +385,7 @@ set_target_properties(dynarmic PROPERTIES
 
 target_compile_options(dynarmic PRIVATE ${DYNARMIC_CXX_FLAGS})
 
-target_link_libraries(dynarmic PUBLIC fmt::fmt common)
+target_link_libraries(dynarmic PUBLIC common)
 
 if (BOOST_NO_HEADERS)
     target_link_libraries(dynarmic PRIVATE Boost::variant Boost::icl Boost::pool)
@@ -398,10 +398,21 @@ if (DYNARMIC_USE_LLVM)
     target_compile_definitions(dynarmic PRIVATE DYNARMIC_USE_LLVM=1 ${LLVM_DEFINITIONS})
     llvm_config(dynarmic USE_SHARED armdesc armdisassembler aarch64desc aarch64disassembler x86desc x86disassembler)
 endif()
+if (DYNARMIC_HOST_FEATURE_OVERRIDE)
+    target_compile_definitions(dynarmic PRIVATE DYNARMIC_HOST_FEATURE_OVERRIDE=1)
+endif()
 if (DYNARMIC_ENABLE_NO_EXECUTE_SUPPORT)
     target_compile_definitions(dynarmic PRIVATE DYNARMIC_ENABLE_NO_EXECUTE_SUPPORT=1)
 endif()
-if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    target_compile_definitions(dynarmic PRIVATE FMT_USE_WINDOWS_H=0)
+
+# need to link to stdc++exp (on glibc++ only) for std::print on mingw
+if (MINGW)
+    include(CheckCXXSymbolExists)
+
+    check_cxx_symbol_exists(__GLIBCXX__ "version" HAS_LIBSTDCXX)
+
+    if(HAS_LIBSTDCXX)
+        message(STATUS "[dynarmic] MinGW libstdc++ needs stdc++exp")
+        target_link_libraries(dynarmic PUBLIC stdc++exp)
+    endif()
 endif()
-target_compile_definitions(dynarmic PRIVATE FMT_USE_USER_DEFINED_LITERALS=1)

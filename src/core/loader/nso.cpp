@@ -240,11 +240,11 @@ std::optional<VAddr> AppLoader_NSO::LoadModule(Kernel::KProcess& process, Core::
         if (name == "main")
             system.SetApplicationProcessBuildID(nso_header.build_id);
 
-        const auto cheats = pm->CreateCheatList(nso_header.build_id);
-        if (!cheats.empty()) {
+        auto cheat_list = pm->CreateCheatList(nso_header.build_id);
+        if (!cheat_list.cheats.empty()) {
             // NCE may place its patch section in front of the module
-            system.RegisterCheatList(cheats, nso_header.build_id, load_base + module_start,
-                                     image_size - module_start);
+            system.RegisterCheatList(process, std::move(cheat_list), nso_header.build_id,
+                                     load_base + module_start, image_size - module_start);
         }
     }
 

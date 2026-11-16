@@ -94,7 +94,7 @@ LaunchParams ParseLaunchParams(Core::System& system, int argc, char *argv[], wch
                 break;
             case 'u': {
                 // Launch game with a specific user
-                bool argument_ok = isdigit(optarg[0]);
+                const bool argument_ok = std::isdigit(uint8_t(optarg[0])) != 0;
                 p.selected_user = atoi(optarg);
                 if (!argument_ok) {
                     // try to look it up by username, only finds the first username that matches.
@@ -181,7 +181,8 @@ void ApplyLaunchParams(LaunchParams const& lp) noexcept {
     }
 
     if (lp.print_version) {
-        LOG_INFO(Frontend, "Eden {} {}", Common::g_scm_branch, Common::g_scm_desc);
+        LOG_INFO(Frontend, "Eden {} {}", std::string_view{Common::g_scm_branch},
+                 std::string_view{Common::g_scm_desc});
     }
     if (lp.print_help) {
         LOG_INFO(Frontend,

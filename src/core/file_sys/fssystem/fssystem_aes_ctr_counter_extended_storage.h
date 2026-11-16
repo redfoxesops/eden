@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <optional>
 #include <type_traits>
 
 #include "common/literals.h"
@@ -18,9 +17,6 @@ namespace FileSys {
 using namespace Common::Literals;
 
 class AesCtrCounterExtendedStorage : public IReadOnlyStorage {
-    YUZU_NON_COPYABLE(AesCtrCounterExtendedStorage);
-    YUZU_NON_MOVEABLE(AesCtrCounterExtendedStorage);
-
 public:
     static constexpr size_t BlockSize = 0x10;
     static constexpr size_t KeySize = 0x10;
@@ -57,7 +53,7 @@ public:
     };
     static_assert(sizeof(Entry) == 0x10);
     static_assert(alignof(Entry) == 4);
-    static_assert(std::is_trivial_v<Entry>);
+    static_assert(std::is_trivially_default_constructible_v<Entry> && std::is_trivially_copyable_v<Entry>);
 
 public:
     static constexpr s64 QueryHeaderStorageSize() {

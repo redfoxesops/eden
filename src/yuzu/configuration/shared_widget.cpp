@@ -31,12 +31,13 @@
 #include <QSizePolicy>
 #include <QSlider>
 #include <QSpinBox>
+#include <QStandardItemModel>
 #include <QStyle>
 #include <QValidator>
 #include <QVariant>
 #include <QtCore/qglobal.h>
 #include <QtCore/qobjectdefs.h>
-#include <fmt/core.h>
+#include <format>
 #include <qglobal.h>
 #include <qnamespace.h>
 
@@ -63,7 +64,7 @@ static QString DefaultSuffix(QWidget* parent, Settings::BasicSetting& setting) {
 
     if ((setting.Specialization() & Settings::SpecializationAttributeMask) ==
         Settings::Specialization::Percentage) {
-        std::string context{fmt::format("{} percentage (e.g. 50%)", setting.GetLabel())};
+        std::string context{std::format("{} percentage (e.g. 50%)", setting.GetLabel())};
         return tr("%", context.c_str());
     }
 
@@ -139,13 +140,34 @@ QWidget* Widget::CreateCombobox(std::function<std::string()>& serializer,
     const ComboboxTranslations* enumeration{nullptr};
     if (combobox_enumerations.contains(type)) {
         enumeration = &combobox_enumerations.at(type);
+        const bool applet = type == Settings::EnumMetadata<Settings::AppletMode>::Index();
+        const bool controller = setting.Id() == Settings::values.controller_applet_mode.Id();
         for (const auto& [id, name] : *enumeration) {
-            if (type == Settings::EnumMetadata<Settings::AppletMode>::Index() &&
-                id == static_cast<u32>(Settings::AppletMode::Disabled) &&
-                setting.Id() != Settings::values.controller_applet_mode.Id()) {
+            // The automatic modes are the controller applet's alone
+            const bool automatic =
+                id == static_cast<u32>(Settings::AppletMode::ConsoleMode) ||
+                id == static_cast<u32>(Settings::AppletMode::HandheldConsoleMode);
+            if (applet && automatic && !controller) {
                 continue;
             }
             combobox->addItem(name, id);
+            // Handheld Console needs to know the handheld's own controller
+            const bool handheld_set = !Settings::values.builtin_pad_identity.GetValue().empty() ||
+                                      !Settings::values.builtin_pad_steam_handle.GetValue().empty();
+            if (applet && controller &&
+                id == static_cast<u32>(Settings::AppletMode::HandheldConsoleMode) &&
+                !handheld_set) {
+                const int row = combobox->count() - 1;
+                if (auto* model = qobject_cast<QStandardItemModel*>(combobox->model())) {
+                    model->item(row)->setEnabled(false);
+                }
+                combobox->setItemData(
+                    row,
+                    tr("No handheld controller is set. Pick Modern Console in Controls > "
+                       "Controllers, turn on Portable Handheld Gaming Device, and pick or "
+                       "identify the handheld's controller."),
+                    Qt::ToolTipRole);
+            }
         }
     } else {
         return combobox;
@@ -163,7 +185,14 @@ QWidget* Widget::CreateCombobox(std::function<std::string()>& serializer,
     const u32 setting_value = std::strtoul(setting.ToString().c_str(), nullptr, 0);
     combobox->setCurrentIndex(find_index(setting_value));
 
-    serializer = [this]() {
+    // The controller applet's mode is also set in Controls > Controllers, which applies at once:
+    // unless it was changed here, this keeps what it is by then (this tab applies last)
+    const bool controller_mode = setting.Id() == Settings::values.controller_applet_mode.Id();
+    const int loaded_index = combobox->currentIndex();
+    serializer = [this, controller_mode, loaded_index]() {
+        if (controller_mode && combobox->currentIndex() == loaded_index) {
+            return setting.ToString();
+        }
         return std::to_string(combobox->currentData().toUInt());
     };
 
@@ -409,7 +438,7 @@ QWidget* Widget::CreateDoubleSpinBox(const QString& given_suffix,
     double_spinbox->setSuffix(suffix);
     double_spinbox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
-    serializer = [this]() { return fmt::format("{:f}", double_spinbox->value()); };
+    serializer = [this]() { return std::format("{:f}", double_spinbox->value()); };
 
     restore_func = [this]() {
         auto value{std::strtod(RelevantDefault(setting).c_str(), nullptr)};
@@ -439,7 +468,7 @@ QWidget* Widget::CreateHexEdit(std::function<std::string()>& serializer,
 
     auto to_hex = [=](const std::string& input) {
         return QString::fromStdString(
-            fmt::format("{:08x}", std::strtoul(input.c_str(), nullptr, 0)));
+            std::format("{:08x}", std::strtoul(input.c_str(), nullptr, 0)));
     };
 
     QRegularExpressionValidator* regex = new QRegularExpressionValidator(

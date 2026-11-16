@@ -10,7 +10,7 @@
 #include <vector>
 #include <memory>
 
-#include <fmt/printf.h>
+#include <format>
 #include "common/common_types.h"
 #include "core/memory/dmnt_cheat_types.h"
 
@@ -299,6 +299,10 @@ public:
 
     bool LoadProgram(const std::vector<CheatEntry>& cheats);
     void Execute(const CheatProcessMetadata& metadata);
+
+    [[nodiscard]] Callbacks* GetCallbacks() const {
+        return callbacks.get();
+    }
 
 private:
     std::unique_ptr<Callbacks> callbacks;
